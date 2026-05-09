@@ -6,6 +6,7 @@ import httpx
 
 from ._version import __version__
 from .errors import TyxterConnectionError, parse_api_error
+from .resources import BatchesResource, ContactsResource, MessagesResource, WebhookEndpointsResource
 
 
 class Tyxter:
@@ -35,6 +36,10 @@ class Tyxter:
             transport=transport,
         )
         self._owns_client = http_client is None
+        self.messages = MessagesResource(self)
+        self.batches = BatchesResource(self)
+        self.contacts = ContactsResource(self)
+        self.webhook_endpoints = WebhookEndpointsResource(self)
 
     def close(self) -> None:
         if self._owns_client:
@@ -54,8 +59,13 @@ class Tyxter:
         json: MappingJSON | None = None,
         params: MappingJSON | None = None,
         idempotency_key: str | None = None,
+        trace_id: str | None = None,
     ) -> Any:
-        headers = self._headers(idempotency_key=idempotency_key, has_body=json is not None)
+        headers = self._headers(
+            idempotency_key=idempotency_key,
+            trace_id=trace_id,
+            has_body=json is not None,
+        )
         try:
             response = self._client.request(
                 method,
@@ -72,7 +82,13 @@ class Tyxter:
             raise parse_api_error(response.status_code, body)
         return body
 
-    def _headers(self, *, idempotency_key: str | None, has_body: bool) -> dict[str, str]:
+    def _headers(
+        self,
+        *,
+        idempotency_key: str | None,
+        trace_id: str | None,
+        has_body: bool,
+    ) -> dict[str, str]:
         headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {self.api_key}",
@@ -82,6 +98,8 @@ class Tyxter:
             headers["Content-Type"] = "application/json"
         if idempotency_key:
             headers["Idempotency-Key"] = idempotency_key
+        if trace_id:
+            headers["Tyxter-Trace-Id"] = trace_id
         return headers
 
     def _parse_response(self, response: httpx.Response) -> Any:
