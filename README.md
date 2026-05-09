@@ -109,3 +109,21 @@ Header names are case-insensitive. The default replay tolerance is 300 seconds.
 
 See `examples/sandbox_send_and_verify.py` for a minimal sandbox sender plus
 webhook verifier using only public SDK surfaces.
+
+## Broadcast Demo
+
+`examples/broadcast_customer_list.py` sends one approved template to a CSV
+customer list through `client.batches.create`.
+
+```bash
+python examples/broadcast_customer_list.py \
+  --customers examples/customers.csv \
+  --from pn_123 \
+  --template-name promo_april \
+  --template-language en_US \
+  --name "April promo" \
+  --idempotency-key idem_april_promo_001
+```
+
+The CSV must include a `phone` column in E.164 format. Any other non-empty
+columns are passed as template variables for that recipient.
