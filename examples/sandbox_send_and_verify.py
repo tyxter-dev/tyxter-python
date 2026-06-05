@@ -9,7 +9,7 @@ from tyxter import Tyxter, WebhookSignatureVerifier
 def build_client() -> Tyxter:
     return Tyxter(
         api_key=os.environ["TYXTER_API_KEY"],
-        base_url=os.environ.get("TYXTER_BASE_URL", "https://api.tyxter.com"),
+        base_url=os.environ.get("TYXTER_API_BASE_URL", "https://api.tyxter.com"),
     )
 
 

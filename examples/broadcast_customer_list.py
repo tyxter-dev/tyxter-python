@@ -125,7 +125,7 @@ def make_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--base-url",
-        default=os.environ.get("TYXTER_BASE_URL", "https://api.tyxter.com"),
+        default=os.environ.get("TYXTER_API_BASE_URL", "https://api.tyxter.com"),
         help="Tyxter API base URL",
     )
     return parser
