@@ -90,9 +90,13 @@ Tyxter signs webhook bodies with `HMAC-SHA256(secret, "{timestamp}.{raw_body}")`
 Use the raw request body exactly as received by your framework.
 
 ```python
+import os
+
 from tyxter import WebhookSignatureVerifier
 
-verifier = WebhookSignatureVerifier("whsec_...")
+# signing_secret is the 64-char hex string returned once by
+# webhookEndpoints.create / rotate-signing-secret (no prefix).
+verifier = WebhookSignatureVerifier(os.environ["TYXTER_WEBHOOK_SECRET"])
 
 is_valid = verifier.verify(
     raw_body=raw_body_bytes,
