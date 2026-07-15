@@ -4,11 +4,12 @@ import argparse
 import csv
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from tyxter import Tyxter
+from tyxter.types import CreateMessageBatchRequest, MessageBatchResponse, VariableValue
 
 PHONE_RE = re.compile(r"^\+\d{8,15}$")
 MAX_BATCH_RECIPIENTS = 10_000
@@ -17,7 +18,7 @@ MAX_BATCH_RECIPIENTS = 10_000
 @dataclass(frozen=True)
 class Customer:
     phone: str
-    variables: dict[str, str]
+    variables: Mapping[str, VariableValue]
 
 
 def read_customer_list(path: Path) -> list[Customer]:
@@ -55,7 +56,7 @@ def build_batch_payload(
     template_name: str,
     template_language: str,
     batch_name: str | None = None,
-) -> dict[str, Any]:
+) -> CreateMessageBatchRequest:
     if not from_phone_number_id:
         raise ValueError("from_phone_number_id is required")
     if not template_name:
@@ -63,11 +64,12 @@ def build_batch_payload(
     if not template_language:
         raise ValueError("template_language is required")
 
-    payload: dict[str, Any] = {
+    payload: CreateMessageBatchRequest = {
+        "channel": "whatsapp",
         "from": from_phone_number_id,
         "template": {"name": template_name, "language": template_language},
         "recipients": [
-            {"to": customer.phone, "variables": customer.variables}
+            {"to": customer.phone, "variables": dict(customer.variables)}
             if customer.variables
             else {"to": customer.phone}
             for customer in customers
@@ -87,7 +89,7 @@ def send_broadcast(
     template_language: str,
     batch_name: str | None = None,
     idempotency_key: str | None = None,
-) -> dict[str, Any]:
+) -> MessageBatchResponse:
     payload = build_batch_payload(
         customers,
         from_phone_number_id=from_phone_number_id,

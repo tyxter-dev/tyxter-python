@@ -4,11 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tyxter"
-version = "0.1.0a0"
+dynamic = ["version"]
 description = "Python SDK for the Tyxter Messaging API."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Tyxter" }]
 keywords = ["tyxter", "whatsapp", "messaging", "sdk"]
 classifiers = [
@@ -23,10 +24,14 @@ classifiers = [
 ]
 dependencies = [
   "httpx>=0.28,<1",
+  "typing-extensions>=4.12,<5",
 ]
 
 [project.optional-dependencies]
 dev = [
+  "build>=1.2,<2",
+  "hatchling>=1.26,<2",
+  "mypy>=1.14,<2",
   "pytest>=8,<9",
   "ruff>=0.8,<1",
 ]
@@ -38,6 +43,9 @@ Repository = "https://github.com/tyxter/tyxter-messaging"
 [tool.hatch.build.targets.wheel]
 packages = ["src/tyxter"]
 
+[tool.hatch.version]
+path = "src/tyxter/_version.py"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
@@ -47,3 +55,9 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src", "tests", "examples"]
+warn_unreachable = true

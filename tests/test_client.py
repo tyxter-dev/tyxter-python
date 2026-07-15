@@ -149,3 +149,110 @@ def test_wraps_network_errors() -> None:
         client._request("GET", "/v1/messages")
 
     assert "connection refused" in str(exc_info.value)
+
+
+def test_returns_none_for_empty_or_no_content_responses() -> None:
+    responses = iter(
+        [
+            httpx.Response(204),
+            httpx.Response(200, content=b""),
+        ]
+    )
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return next(responses)
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client._request("DELETE", "/v1/webhook-events/listen-sessions/lsn_1") is None
+    assert client._request("GET", "/v1/account") is None
+
+
+def test_invalid_json_success_response_falls_back_to_text() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"not-json",
+            headers={"content-type": "application/json"},
+        )
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    assert client._request("GET", "/v1/account") == "not-json"
+
+
+def test_injected_http_client_uses_tyxter_base_url_and_remains_caller_owned() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"object": "account"})
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test/root",
+        http_client=http_client,
+    )
+
+    client._request("GET", "/v1/account")
+    client.close()
+
+    assert str(seen[0].url) == "https://api.test/root/v1/account"
+    assert not http_client.is_closed
+    http_client.close()
+
+
+def test_rejects_transport_when_http_client_is_injected() -> None:
+    http_client = httpx.Client()
+    try:
+        with pytest.raises(ValueError, match="transport cannot be combined with http_client"):
+            Tyxter(
+                api_key="tx_sandbox_test",
+                http_client=http_client,
+                transport=httpx.MockTransport(lambda _: httpx.Response(200)),
+            )
+    finally:
+        http_client.close()
+
+
+def test_client_repr_does_not_expose_api_key() -> None:
+    api_key = "tx_sandbox_do_not_log_this"
+    client = Tyxter(api_key=api_key)
+
+    assert api_key not in repr(client)
+    client.close()
+
+
+def test_parses_optional_feedback_pointer() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            500,
+            json={
+                "error": {
+                    "type": "internal_error",
+                    "code": "internal_error",
+                    "message": "unexpected failure",
+                    "feedback": {"endpoint": "/v1/feedback", "method": "POST"},
+                }
+            },
+        )
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(TyxterAPIError) as exc_info:
+        client._request("GET", "/v1/account")
+
+    assert exc_info.value.feedback == {"endpoint": "/v1/feedback", "method": "POST"}

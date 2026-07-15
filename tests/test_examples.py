@@ -67,6 +67,106 @@ def test_webhook_verifier_example_uses_public_signature_helper() -> None:
     )
 
 
+def test_first_message_example_sends_inspects_and_verifies_public_webhook() -> None:
+    example = load_example("sandbox_send_and_verify")
+    seen: list[httpx.Request] = []
+    secret = "wh_secret_abcdef"
+    timestamp = "1714123456"
+    raw_body = '{"id":"evt_1","type":"message.sent"}'
+    signature = sign_webhook(secret, timestamp, raw_body)
+    listen_calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal listen_calls
+        seen.append(request)
+        if request.url.path == "/v1/webhook-endpoints":
+            return httpx.Response(
+                200,
+                json={
+                    "object": "list",
+                    "data": [{"id": "whe_1", "status": "active"}],
+                    "has_more": False,
+                    "next_cursor": None,
+                },
+            )
+        if request.url.path == "/v1/webhook-events/listen":
+            listen_calls += 1
+            if listen_calls == 1:
+                assert request.url.params["start_at"] == "tail"
+                assert request.url.params["webhook_endpoint_id"] == "whe_1"
+                return httpx.Response(
+                    200,
+                    json={
+                        "object": "webhook_event_listen",
+                        "data": [],
+                        "has_more": False,
+                        "next_cursor": "cur_tail",
+                    },
+                )
+            assert request.url.params["cursor"] == "cur_tail"
+            assert request.url.params["webhook_endpoint_id"] == "whe_1"
+            return httpx.Response(
+                200,
+                json={
+                    "object": "webhook_event_listen",
+                    "data": [
+                        {
+                            "id": "evt_1",
+                            "object": "webhook_event",
+                            "source_id": "msg_123",
+                            "type": "message.sent",
+                            "signature_preview": {
+                                "raw_body": raw_body,
+                                "timestamp": timestamp,
+                                "headers": {
+                                    "tyxter-webhook-timestamp": timestamp,
+                                    "tyxter-webhook-signature": signature,
+                                },
+                            },
+                        }
+                    ],
+                    "has_more": False,
+                    "next_cursor": None,
+                },
+            )
+        if request.url.path == "/v1/sandbox/inbound-messages":
+            return httpx.Response(
+                202,
+                json={"id": "msg_inbound", "object": "message", "status": "received"},
+            )
+        if request.url.path == "/v1/messages" and request.method == "POST":
+            return httpx.Response(
+                202,
+                json={"id": "msg_123", "object": "message", "status": "accepted"},
+            )
+        if request.url.path == "/v1/messages/msg_123":
+            return httpx.Response(
+                200,
+                json={"id": "msg_123", "object": "message", "status": "sent"},
+            )
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    result = example.send_inspect_and_verify(client, to="+15555550100", signing_secret=secret)
+
+    assert result.message["id"] == "msg_123"
+    assert result.detail["status"] == "sent"
+    assert result.webhook_event["id"] == "evt_1"
+    assert [request.url.path for request in seen] == [
+        "/v1/webhook-endpoints",
+        "/v1/webhook-events/listen",
+        "/v1/sandbox/inbound-messages",
+        "/v1/messages",
+        "/v1/messages/msg_123",
+        "/v1/webhook-events/listen",
+    ]
+
+
 def test_broadcast_demo_reads_customer_csv() -> None:
     example = load_example("broadcast_customer_list")
     customers_path = Path(__file__).parents[1] / "examples" / "customers.csv"
@@ -152,6 +252,7 @@ def test_broadcast_demo_uses_public_batches_api() -> None:
     assert "/internal" not in request.url.path
     assert "/providers/" not in request.url.path
     assert json.loads(request.read()) == {
+        "channel": "whatsapp",
         "from": "pn_123",
         "template": {"name": "promo_april", "language": "en_US"},
         "recipients": [

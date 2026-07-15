@@ -1,39 +1,53 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import cast
 
-from ._base import JSONDict, Resource, path_id
+from tyxter.types import (
+    BulkImportContactsRequest,
+    BulkImportContactsResponse,
+    ContactDataExportResponse,
+    ContactErasureResponse,
+    ContactResponse,
+    ContactStatus,
+    ListContactsResponse,
+    OptInRequest,
+    OptOutRequest,
+)
+
+from ._base import Resource, path_id
 
 
 class ContactsResource(Resource):
     def opt_in(
         self,
-        payload: JSONDict,
+        payload: OptInRequest,
         *,
         idempotency_key: str | None = None,
-        trace_id: str | None = None,
-    ) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            "/v1/contacts/opt-in",
-            json=payload,
-            idempotency_key=idempotency_key,
-            trace_id=trace_id,
+    ) -> ContactResponse:
+        return cast(
+            ContactResponse,
+            self._request(
+                "POST",
+                "/v1/contacts/opt-in",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def opt_out(
         self,
-        payload: JSONDict,
+        payload: OptOutRequest,
         *,
         idempotency_key: str | None = None,
-        trace_id: str | None = None,
-    ) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            "/v1/contacts/opt-out",
-            json=payload,
-            idempotency_key=idempotency_key,
-            trace_id=trace_id,
+    ) -> ContactResponse:
+        return cast(
+            ContactResponse,
+            self._request(
+                "POST",
+                "/v1/contacts/opt-out",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def list(
@@ -41,30 +55,52 @@ class ContactsResource(Resource):
         *,
         limit: int | None = None,
         starting_after: str | None = None,
-    ) -> dict[str, Any]:
-        return self._request(
-            "GET",
-            "/v1/contacts",
-            params={"limit": limit, "starting_after": starting_after},
+        search: str | None = None,
+        status: ContactStatus | None = None,
+        tag_id: str | None = None,
+    ) -> ListContactsResponse:
+        return cast(
+            ListContactsResponse,
+            self._request(
+                "GET",
+                "/v1/contacts",
+                params={
+                    "limit": limit,
+                    "starting_after": starting_after,
+                    "search": search,
+                    "status": status,
+                    "tag_id": tag_id,
+                },
+            ),
         )
 
     def bulk_import(
         self,
-        payload: JSONDict,
+        payload: BulkImportContactsRequest,
         *,
         idempotency_key: str | None = None,
-        trace_id: str | None = None,
-    ) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            "/v1/contacts/bulk-import",
-            json=payload,
-            idempotency_key=idempotency_key,
-            trace_id=trace_id,
+    ) -> BulkImportContactsResponse:
+        return cast(
+            BulkImportContactsResponse,
+            self._request(
+                "POST",
+                "/v1/contacts/bulk-import",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
         )
 
-    def export(self, contact_id: str) -> dict[str, Any]:
-        return self._request("POST", f"/v1/contacts/{path_id('contact_id', contact_id)}/export")
+    def export(self, contact_id: str) -> ContactDataExportResponse:
+        return cast(
+            ContactDataExportResponse,
+            self._request(
+                "POST",
+                f"/v1/contacts/{path_id('contact_id', contact_id)}/export",
+            ),
+        )
 
-    def erase(self, contact_id: str) -> dict[str, Any]:
-        return self._request("DELETE", f"/v1/contacts/{path_id('contact_id', contact_id)}")
+    def erase(self, contact_id: str) -> ContactErasureResponse:
+        return cast(
+            ContactErasureResponse,
+            self._request("DELETE", f"/v1/contacts/{path_id('contact_id', contact_id)}"),
+        )

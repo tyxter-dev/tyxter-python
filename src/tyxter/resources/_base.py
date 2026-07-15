@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
 from urllib.parse import quote
+
+from tyxter.types import QueryValue
 
 if TYPE_CHECKING:
     from tyxter.client import Tyxter
 
-JSONDict = dict[str, Any]
+RequestBody = Mapping[str, object]
+QueryParams = Mapping[str, QueryValue | None]
 
 
 class Resource:
@@ -18,11 +22,11 @@ class Resource:
         method: str,
         path: str,
         *,
-        json: JSONDict | None = None,
-        params: JSONDict | None = None,
+        json: RequestBody | None = None,
+        params: QueryParams | None = None,
         idempotency_key: str | None = None,
         trace_id: str | None = None,
-    ) -> Any:
+    ) -> object:
         return self._client._request(
             method,
             path,
@@ -39,7 +43,7 @@ def path_id(name: str, value: str) -> str:
     return quote(value, safe="")
 
 
-def _clean_params(params: JSONDict | None) -> JSONDict | None:
+def _clean_params(params: QueryParams | None) -> dict[str, QueryValue] | None:
     if params is None:
         return None
     clean = {key: value for key, value in params.items() if value is not None}
