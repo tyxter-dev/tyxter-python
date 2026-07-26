@@ -201,6 +201,12 @@ class MessageSummaryResponse(TypedDict):
     trace_id: str
     created_at: str
     updated_at: str
+    # Delivery-confirmation timeout stamp. Non-null once the provider accepted the
+    # send but no delivery status ever arrived inside the platform's confirmation
+    # window; the message is "sent" and stays "sent". Not a status: it clears the
+    # moment any status lands, and the message can still be delivered or fail.
+    # Always None in sandbox, where statuses are delivered synchronously.
+    delivery_unconfirmed_at: str | None
 
 
 class MessageDetailResponse(MessageSummaryResponse):
