@@ -115,12 +115,18 @@ class MessagesResource(Resource):
     def retrieve(self, message_id: str) -> MessageDetailResponse:
         return self.get(message_id)
 
-    def cancel(self, message_id: str) -> MessageDetailResponse:
+    def cancel(
+        self,
+        message_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> MessageDetailResponse:
         return cast(
             MessageDetailResponse,
             self._request(
                 "POST",
                 f"/v1/messages/{path_id('message_id', message_id)}/cancel",
+                idempotency_key=idempotency_key,
             ),
         )
 

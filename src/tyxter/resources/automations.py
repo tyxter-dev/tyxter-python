@@ -122,19 +122,33 @@ class AutomationsResource(Resource):
             ),
         )
 
-    def pause(self, automation_id: str) -> AutomationResponse:
+    def pause(
+        self,
+        automation_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> AutomationResponse:
         return cast(
             AutomationResponse,
             self._request(
-                "POST", f"/v1/automations/{path_id('automation_id', automation_id)}/pause"
+                "POST",
+                f"/v1/automations/{path_id('automation_id', automation_id)}/pause",
+                idempotency_key=idempotency_key,
             ),
         )
 
-    def resume(self, automation_id: str) -> AutomationResponse:
+    def resume(
+        self,
+        automation_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> AutomationResponse:
         return cast(
             AutomationResponse,
             self._request(
-                "POST", f"/v1/automations/{path_id('automation_id', automation_id)}/resume"
+                "POST",
+                f"/v1/automations/{path_id('automation_id', automation_id)}/resume",
+                idempotency_key=idempotency_key,
             ),
         )
 

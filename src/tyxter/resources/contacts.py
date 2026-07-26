@@ -90,17 +90,32 @@ class ContactsResource(Resource):
             ),
         )
 
-    def export(self, contact_id: str) -> ContactDataExportResponse:
+    def export(
+        self,
+        contact_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> ContactDataExportResponse:
         return cast(
             ContactDataExportResponse,
             self._request(
                 "POST",
                 f"/v1/contacts/{path_id('contact_id', contact_id)}/export",
+                idempotency_key=idempotency_key,
             ),
         )
 
-    def erase(self, contact_id: str) -> ContactErasureResponse:
+    def erase(
+        self,
+        contact_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> ContactErasureResponse:
         return cast(
             ContactErasureResponse,
-            self._request("DELETE", f"/v1/contacts/{path_id('contact_id', contact_id)}"),
+            self._request(
+                "DELETE",
+                f"/v1/contacts/{path_id('contact_id', contact_id)}",
+                idempotency_key=idempotency_key,
+            ),
         )

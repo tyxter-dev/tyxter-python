@@ -54,10 +54,16 @@ class ApiKeysResource(Resource):
             ),
         )
 
-    def rotate(self, api_key_id: str) -> RotateApiKeyResponse:
+    def rotate(
+        self, api_key_id: str, *, idempotency_key: str | None = None
+    ) -> RotateApiKeyResponse:
         return cast(
             RotateApiKeyResponse,
-            self._request("POST", f"/v1/api-keys/{path_id('api_key_id', api_key_id)}/rotate"),
+            self._request(
+                "POST",
+                f"/v1/api-keys/{path_id('api_key_id', api_key_id)}/rotate",
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def revoke(self, api_key_id: str) -> APIKeyResponse:

@@ -124,17 +124,26 @@ class WebhookEventsResource(Resource):
             ),
         )
 
-    def resend(self, webhook_event_id: str) -> WebhookDeliveryAttempt:
+    def resend(
+        self,
+        webhook_event_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> WebhookDeliveryAttempt:
         return cast(
             WebhookDeliveryAttempt,
             self._request(
                 "POST",
                 f"/v1/webhook-events/{path_id('webhook_event_id', webhook_event_id)}/resend",
+                idempotency_key=idempotency_key,
             ),
         )
 
     def bulk_resend(
-        self, payload: BulkResendWebhookEventsRequest
+        self,
+        payload: BulkResendWebhookEventsRequest,
+        *,
+        idempotency_key: str | None = None,
     ) -> BulkResendWebhookEventsResponse:
         return cast(
             BulkResendWebhookEventsResponse,
@@ -142,5 +151,6 @@ class WebhookEventsResource(Resource):
                 "POST",
                 "/v1/webhook-events/bulk-resend",
                 json=payload,
+                idempotency_key=idempotency_key,
             ),
         )

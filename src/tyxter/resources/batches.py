@@ -61,32 +61,53 @@ class BatchesResource(Resource):
             ),
         )
 
-    def pause(self, batch_id: str, *, trace_id: str | None = None) -> MessageBatchResponse:
+    def pause(
+        self,
+        batch_id: str,
+        *,
+        idempotency_key: str | None = None,
+        trace_id: str | None = None,
+    ) -> MessageBatchResponse:
         return cast(
             MessageBatchResponse,
             self._request(
                 "POST",
                 f"/v1/batches/{path_id('batch_id', batch_id)}/pause",
+                idempotency_key=idempotency_key,
                 trace_id=trace_id,
             ),
         )
 
-    def resume(self, batch_id: str, *, trace_id: str | None = None) -> MessageBatchResponse:
+    def resume(
+        self,
+        batch_id: str,
+        *,
+        idempotency_key: str | None = None,
+        trace_id: str | None = None,
+    ) -> MessageBatchResponse:
         return cast(
             MessageBatchResponse,
             self._request(
                 "POST",
                 f"/v1/batches/{path_id('batch_id', batch_id)}/resume",
+                idempotency_key=idempotency_key,
                 trace_id=trace_id,
             ),
         )
 
-    def cancel(self, batch_id: str, *, trace_id: str | None = None) -> MessageBatchResponse:
+    def cancel(
+        self,
+        batch_id: str,
+        *,
+        idempotency_key: str | None = None,
+        trace_id: str | None = None,
+    ) -> MessageBatchResponse:
         return cast(
             MessageBatchResponse,
             self._request(
                 "POST",
                 f"/v1/batches/{path_id('batch_id', batch_id)}/cancel",
+                idempotency_key=idempotency_key,
                 trace_id=trace_id,
             ),
         )

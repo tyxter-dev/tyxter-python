@@ -13,8 +13,21 @@ from ._base import Resource, path_id
 
 
 class AudiencesResource(Resource):
-    def create(self, payload: CreateAudienceRequest) -> AudienceResponse:
-        return cast(AudienceResponse, self._request("POST", "/v1/audiences", json=payload))
+    def create(
+        self,
+        payload: CreateAudienceRequest,
+        *,
+        idempotency_key: str | None = None,
+    ) -> AudienceResponse:
+        return cast(
+            AudienceResponse,
+            self._request(
+                "POST",
+                "/v1/audiences",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
+        )
 
     def list(
         self, *, limit: int | None = None, starting_after: str | None = None
@@ -34,18 +47,29 @@ class AudiencesResource(Resource):
             self._request("GET", f"/v1/audiences/{path_id('audience_id', audience_id)}"),
         )
 
-    def update(self, audience_id: str, payload: UpdateAudienceRequest) -> AudienceResponse:
+    def update(
+        self,
+        audience_id: str,
+        payload: UpdateAudienceRequest,
+        *,
+        idempotency_key: str | None = None,
+    ) -> AudienceResponse:
         return cast(
             AudienceResponse,
             self._request(
                 "PATCH",
                 f"/v1/audiences/{path_id('audience_id', audience_id)}",
                 json=payload,
+                idempotency_key=idempotency_key,
             ),
         )
 
-    def delete(self, audience_id: str) -> AudienceResponse:
+    def delete(self, audience_id: str, *, idempotency_key: str | None = None) -> AudienceResponse:
         return cast(
             AudienceResponse,
-            self._request("DELETE", f"/v1/audiences/{path_id('audience_id', audience_id)}"),
+            self._request(
+                "DELETE",
+                f"/v1/audiences/{path_id('audience_id', audience_id)}",
+                idempotency_key=idempotency_key,
+            ),
         )

@@ -70,18 +70,36 @@ class ProviderConnectionsResource(Resource):
             self._request("GET", "/v1/provider-connections/meta/onboarding"),
         )
 
-    def register_meta(self, payload: RegisterMetaConnectionRequest) -> ProviderConnectionResponse:
-        return cast(
-            ProviderConnectionResponse,
-            self._request("POST", "/v1/provider-connections/meta", json=payload),
-        )
-
-    def exchange_meta_oauth(
-        self, payload: ExchangeMetaOAuthCodeRequest
+    def register_meta(
+        self,
+        payload: RegisterMetaConnectionRequest,
+        *,
+        idempotency_key: str | None = None,
     ) -> ProviderConnectionResponse:
         return cast(
             ProviderConnectionResponse,
-            self._request("POST", "/v1/provider-connections/meta/oauth", json=payload),
+            self._request(
+                "POST",
+                "/v1/provider-connections/meta",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
+        )
+
+    def exchange_meta_oauth(
+        self,
+        payload: ExchangeMetaOAuthCodeRequest,
+        *,
+        idempotency_key: str | None = None,
+    ) -> ProviderConnectionResponse:
+        return cast(
+            ProviderConnectionResponse,
+            self._request(
+                "POST",
+                "/v1/provider-connections/meta/oauth",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def complete_meta_registration(
@@ -113,6 +131,8 @@ class ProviderConnectionsResource(Resource):
         self,
         connection_id: str,
         payload: RotateProviderConnectionTokenRequest,
+        *,
+        idempotency_key: str | None = None,
     ) -> ProviderConnectionResponse:
         return cast(
             ProviderConnectionResponse,
@@ -120,6 +140,7 @@ class ProviderConnectionsResource(Resource):
                 "POST",
                 f"/v1/provider-connections/{path_id('connection_id', connection_id)}/rotate",
                 json=payload,
+                idempotency_key=idempotency_key,
             ),
         )
 

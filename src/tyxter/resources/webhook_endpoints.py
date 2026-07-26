@@ -59,7 +59,11 @@ class WebhookEndpointsResource(Resource):
         return self.get(webhook_endpoint_id)
 
     def update(
-        self, webhook_endpoint_id: str, payload: UpdateWebhookEndpointRequest
+        self,
+        webhook_endpoint_id: str,
+        payload: UpdateWebhookEndpointRequest,
+        *,
+        idempotency_key: str | None = None,
     ) -> WebhookEndpointResponse:
         return cast(
             WebhookEndpointResponse,
@@ -67,24 +71,37 @@ class WebhookEndpointsResource(Resource):
                 "PATCH",
                 f"/v1/webhook-endpoints/{path_id('webhook_endpoint_id', webhook_endpoint_id)}",
                 json=payload,
+                idempotency_key=idempotency_key,
             ),
         )
 
-    def delete(self, webhook_endpoint_id: str) -> WebhookEndpointResponse:
+    def delete(
+        self,
+        webhook_endpoint_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> WebhookEndpointResponse:
         return cast(
             WebhookEndpointResponse,
             self._request(
                 "DELETE",
                 f"/v1/webhook-endpoints/{path_id('webhook_endpoint_id', webhook_endpoint_id)}",
+                idempotency_key=idempotency_key,
             ),
         )
 
-    def rotate_signing_secret(self, webhook_endpoint_id: str) -> RotateWebhookSigningSecretResponse:
+    def rotate_signing_secret(
+        self,
+        webhook_endpoint_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> RotateWebhookSigningSecretResponse:
         return cast(
             RotateWebhookSigningSecretResponse,
             self._request(
                 "POST",
                 "/v1/webhook-endpoints/"
                 f"{path_id('webhook_endpoint_id', webhook_endpoint_id)}/rotate-signing-secret",
+                idempotency_key=idempotency_key,
             ),
         )

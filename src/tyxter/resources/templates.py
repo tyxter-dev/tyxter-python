@@ -19,8 +19,21 @@ from ._base import Resource, path_id
 
 
 class TemplatesResource(Resource):
-    def create(self, payload: CreateTemplateRequest) -> TemplateResponse:
-        return cast(TemplateResponse, self._request("POST", "/v1/templates", json=payload))
+    def create(
+        self,
+        payload: CreateTemplateRequest,
+        *,
+        idempotency_key: str | None = None,
+    ) -> TemplateResponse:
+        return cast(
+            TemplateResponse,
+            self._request(
+                "POST",
+                "/v1/templates",
+                json=payload,
+                idempotency_key=idempotency_key,
+            ),
+        )
 
     def generate(
         self,
@@ -56,26 +69,39 @@ class TemplatesResource(Resource):
             self._request("GET", f"/v1/templates/{path_id('template_id', template_id)}"),
         )
 
-    def update(self, template_id: str, payload: UpdateTemplateRequest) -> TemplateResponse:
+    def update(
+        self,
+        template_id: str,
+        payload: UpdateTemplateRequest,
+        *,
+        idempotency_key: str | None = None,
+    ) -> TemplateResponse:
         return cast(
             TemplateResponse,
             self._request(
                 "PATCH",
                 f"/v1/templates/{path_id('template_id', template_id)}",
                 json=payload,
+                idempotency_key=idempotency_key,
             ),
         )
 
-    def submit(self, template_id: str) -> TemplateResponse:
+    def submit(self, template_id: str, *, idempotency_key: str | None = None) -> TemplateResponse:
         return cast(
             TemplateResponse,
-            self._request("POST", f"/v1/templates/{path_id('template_id', template_id)}/submit"),
+            self._request(
+                "POST",
+                f"/v1/templates/{path_id('template_id', template_id)}/submit",
+                idempotency_key=idempotency_key,
+            ),
         )
 
     def duplicate(
         self,
         template_id: str,
         payload: DuplicateTemplateRequest | None = None,
+        *,
+        idempotency_key: str | None = None,
     ) -> TemplateResponse:
         return cast(
             TemplateResponse,
@@ -83,6 +109,7 @@ class TemplatesResource(Resource):
                 "POST",
                 f"/v1/templates/{path_id('template_id', template_id)}/duplicate",
                 json=payload or {},
+                idempotency_key=idempotency_key,
             ),
         )
 
