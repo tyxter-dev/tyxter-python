@@ -21,5 +21,9 @@ def core_usage(client: Tyxter) -> None:
 
     assert_type(client.messages.create(request), MessageResponse)
     assert_type(client.messages.list(status="sent"), ListMessagesResponse)
+    assert_type(
+        client.messages.list(direction="inbound", include="payload"),
+        ListMessagesResponse,
+    )
     assert_type(client.messages.retrieve("msg_123"), MessageDetailResponse)
     assert_type(client.messages.cancel("msg_123"), MessageDetailResponse)

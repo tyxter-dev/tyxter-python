@@ -13,6 +13,7 @@ from .channel_messages import (
     WhatsAppMessagesResource,
 )
 from .contacts import ContactsResource
+from .data_retention import DataRetentionResource
 from .feedback import FeedbackResource
 from .fiscal import FiscalResource
 from .flows import FlowsResource
@@ -45,6 +46,7 @@ __all__ = [
     "BatchesResource",
     "BillingResource",
     "ContactsResource",
+    "DataRetentionResource",
     "FeedbackResource",
     "FiscalResource",
     "FlowsResource",

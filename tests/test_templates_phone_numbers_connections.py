@@ -125,6 +125,7 @@ def test_provider_connections_and_credential_setup_match_header_capabilities() -
         {"target": "meta.whatsapp"}, idempotency_key="idem_setup"
     )
     client.provider_credential_setup_sessions.retrieve("req/1")
+    client.provider_connections.complete_meta_registration("pc/2", idempotency_key="idem_complete")
 
     assert seen[0].url.query.decode() == "limit=5&starting_after=pc_1"
     assert seen[1].url.path.endswith("/status")
@@ -136,6 +137,11 @@ def test_provider_connections_and_credential_setup_match_header_capabilities() -
     assert seen[7].method == "DELETE"
     assert seen[8].headers["idempotency-key"] == "idem_setup"
     assert str(seen[9].url) == ("https://api.test/v1/provider-credential-setup-sessions/req%2F1")
+    assert seen[10].method == "POST"
+    assert str(seen[10].url) == (
+        "https://api.test/v1/provider-connections/pc%2F2/meta/complete-registration"
+    )
+    assert seen[10].headers["idempotency-key"] == "idem_complete"
 
 
 def test_audiences_cover_crud_without_stale_js_headers() -> None:

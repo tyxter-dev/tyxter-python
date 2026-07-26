@@ -76,11 +76,17 @@ def test_messages_list_filters_none_query_params() -> None:
     client, seen = make_client()
 
     client.messages.list(limit=25, starting_after=None, status="queued", batch_id="batch_123")
+    client.messages.list(direction="inbound", include="payload")
 
     assert_request(
         seen[0],
         method="GET",
         url="https://api.test/v1/messages?limit=25&status=queued&batch_id=batch_123",
+    )
+    assert_request(
+        seen[1],
+        method="GET",
+        url="https://api.test/v1/messages?direction=inbound&include=payload",
     )
 
 

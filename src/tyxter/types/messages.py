@@ -7,6 +7,7 @@ from typing_extensions import NotRequired, Required, TypedDict
 from .common import Environment, JSONObject, JSONValue
 
 MessageChannel: TypeAlias = Literal["whatsapp", "instagram", "whatsapp_channel"]
+MessageDirection: TypeAlias = Literal["inbound", "outbound"]
 MessageIdentityType: TypeAlias = Literal[
     "whatsapp_phone_number",
     "phone_e164",
@@ -180,7 +181,7 @@ class MessageSummaryResponse(TypedDict):
     id: str
     object: Literal["message"]
     channel: MessageChannel
-    direction: str
+    direction: MessageDirection
     type: str
     status: str
     environment: Environment

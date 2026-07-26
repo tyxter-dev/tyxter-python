@@ -138,3 +138,22 @@ def test_agentic_payments_cover_banks_authorizations_and_payments() -> None:
     assert str(seen[7].url).endswith("/agentic/payments/pay%2F2")
     assert not seen[8].content
     assert seen[8].headers["idempotency-key"] == "idem_cancel"
+
+
+def test_data_retention_covers_policy_read_and_update() -> None:
+    seen: list[httpx.Request] = []
+    client = make_client(seen)
+
+    client.data_retention.retrieve()
+    client.data_retention.update(
+        {"retention_days": 30, "data_export_enabled": False},
+        idempotency_key="idem_retention",
+    )
+
+    assert [(request.method, request.url.path) for request in seen] == [
+        ("GET", "/v1/data-retention"),
+        ("PATCH", "/v1/data-retention"),
+    ]
+    assert body(seen[1]) == {"retention_days": 30, "data_export_enabled": False}
+    assert "idempotency-key" not in seen[0].headers
+    assert seen[1].headers["idempotency-key"] == "idem_retention"

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from typing_extensions import NotRequired, Required, TypedDict
 
@@ -81,3 +81,22 @@ class SandboxQuickstartResponse(TypedDict):
     webhooks: SandboxWebhooks
     capabilities: SandboxCapabilities
     missing_scopes: list[str]
+
+
+SandboxLLMFailureKind: TypeAlias = Literal[
+    "provider_down",
+    "auth_failed",
+    "timeout",
+    "cost_cap_reached",
+]
+
+
+class SandboxLLMFailureRequest(TypedDict):
+    failure: SandboxLLMFailureKind
+    ttl_seconds: NotRequired[int]
+
+
+class SandboxLLMFailureResponse(TypedDict):
+    armed: Literal[True]
+    failure: SandboxLLMFailureKind
+    expires_at: str | None

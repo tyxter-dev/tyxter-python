@@ -77,7 +77,8 @@ The client exposes snake-case resource namespaces:
 
 - `account`, `api_keys`, `ai_agents`, `agentic_payments`, and `audiences`
 - `automations`, `automation_runs`, and `automation_webhooks`
-- `batches`, `billing`, `contacts`, `feedback`, `fiscal`, and `flows`
+- `batches`, `billing`, `contacts`, `data_retention`, `feedback`, `fiscal`,
+  and `flows`
 - `llm`, `llm_routes`, `media`, `messages`, and `payments`
 - `phone_numbers`, `provider_connections`, and
   `provider_credential_setup_sessions`

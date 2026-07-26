@@ -84,6 +84,22 @@ class ProviderConnectionsResource(Resource):
             self._request("POST", "/v1/provider-connections/meta/oauth", json=payload),
         )
 
+    def complete_meta_registration(
+        self,
+        connection_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> ProviderConnectionResponse:
+        return cast(
+            ProviderConnectionResponse,
+            self._request(
+                "POST",
+                f"/v1/provider-connections/{path_id('connection_id', connection_id)}"
+                "/meta/complete-registration",
+                idempotency_key=idempotency_key,
+            ),
+        )
+
     def retrieve(self, connection_id: str) -> ProviderConnectionResponse:
         return cast(
             ProviderConnectionResponse,

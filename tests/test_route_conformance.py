@@ -20,6 +20,7 @@ MANIFEST_PATH = (
     / "snapshots"
     / "public-api-launch-endpoints.json"
 )
+QUERY_PARAMS_PATH = MANIFEST_PATH.with_name("public-api-query-params.json")
 
 # A resource moves out of this ledger only when every one of its manifest
 # routes has a typed SDK method and route-level tests. A newly introduced
@@ -39,6 +40,7 @@ SUPPORTED_RESOURCES = {
     "batches",
     "billing",
     "contacts",
+    "data_retention",
     "feedback",
     "fiscal",
     "flows",
@@ -71,6 +73,10 @@ class CoveredRoute:
     function: str
     idempotency_key: bool
     trace_id_header: bool
+    # Keys of the literal `params={...}` dict passed to _request, None when the
+    # call sends no query params. A non-literal params expression is recorded as
+    # {"<dynamic>"} so the query-param gate flags it instead of skipping it.
+    query_params: frozenset[str] | None
 
     @property
     def key(self) -> str:
@@ -87,6 +93,30 @@ def load_manifest() -> list[dict[str, Any]]:
         list[dict[str, Any]],
         json.loads(MANIFEST_PATH.read_text(encoding="utf-8")),
     )
+
+
+def load_query_params_snapshot() -> dict[str, list[str]]:
+    return cast(
+        dict[str, list[str]],
+        json.loads(QUERY_PARAMS_PATH.read_text(encoding="utf-8")),
+    )
+
+
+def _query_param_keys(call: ast.Call) -> frozenset[str] | None:
+    for keyword in call.keywords:
+        if keyword.arg != "params":
+            continue
+        value = keyword.value
+        if isinstance(value, ast.Dict):
+            keys: list[str] = []
+            for key in value.keys:
+                if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                    keys.append(key.value)
+                else:
+                    return frozenset({"<dynamic>"})
+            return frozenset(keys)
+        return frozenset({"<dynamic>"})
+    return None
 
 
 def _string_expression(node: ast.expr) -> str | None:
@@ -153,6 +183,7 @@ def extract_routes() -> list[CoveredRoute]:
                             "idempotency_key" in parameter_names and "idempotency_key" in forwarded
                         ),
                         trace_id_header=("trace_id" in parameter_names and "trace_id" in forwarded),
+                        query_params=_query_param_keys(child),
                     )
                 )
     return covered
@@ -200,6 +231,42 @@ def test_python_sdk_has_no_phantom_or_duplicate_routes(
     assert REVIEWED_ROUTE_EXEMPTIONS <= manifest_keys
     duplicates = sorted(key for key in set(covered_keys) if covered_keys.count(key) > 1)
     assert duplicates == []
+
+
+def test_query_params_match_the_canonical_contracts(
+    manifest: list[dict[str, Any]], covered: list[CoveredRoute]
+) -> None:
+    """Every SDK method's query surface equals its manifest query schema.
+
+    The schema param names come from the Zod-derived snapshot
+    public-api-query-params.json (locked by contracts-api's
+    query-params.test.ts), so a query param added to a contract schema fails
+    here until the SDK method exposes it — the silent-drift class of #425
+    (messages.list() missing `direction`/`include`).
+    """
+    snapshot = load_query_params_snapshot()
+    by_key = {
+        route_key(str(endpoint["method"]), str(endpoint["path"])): endpoint for endpoint in manifest
+    }
+    mismatches: list[str] = []
+    for route in covered:
+        endpoint = by_key[route.key]
+        schema_name = cast(str | None, endpoint["query_schema"])
+        if schema_name is not None and schema_name not in snapshot:
+            mismatches.append(
+                f"{route.key}: query_schema {schema_name} missing from "
+                f"public-api-query-params.json — regenerate the snapshot"
+            )
+            continue
+        expected = set(snapshot[schema_name]) if schema_name is not None else set()
+        actual = set(route.query_params or frozenset())
+        if actual != expected:
+            missing = sorted(expected - actual)
+            phantom = sorted(actual - expected)
+            mismatches.append(
+                f"{route.key} ({route.source}:{route.function}) missing={missing} phantom={phantom}"
+            )
+    assert mismatches == []
 
 
 def test_supported_headers_match_the_canonical_manifest(

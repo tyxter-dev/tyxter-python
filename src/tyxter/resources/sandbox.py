@@ -6,6 +6,8 @@ from tyxter.types import (
     InboundSandboxMessageRequest,
     MessageResponse,
     PaymentResponse,
+    SandboxLLMFailureRequest,
+    SandboxLLMFailureResponse,
     SandboxPaymentStatusRequest,
     SandboxQuickstartResponse,
     SandboxTemplateStatusRequest,
@@ -78,12 +80,33 @@ class SandboxPaymentsResource(Resource):
         )
 
 
+class SandboxLLMResource(Resource):
+    def set_failure(
+        self,
+        payload: SandboxLLMFailureRequest,
+        *,
+        idempotency_key: str | None = None,
+        trace_id: str | None = None,
+    ) -> SandboxLLMFailureResponse:
+        return cast(
+            SandboxLLMFailureResponse,
+            self._request(
+                "POST",
+                "/v1/sandbox/llm/failure",
+                json=payload,
+                idempotency_key=idempotency_key,
+                trace_id=trace_id,
+            ),
+        )
+
+
 class SandboxResource(Resource):
     def __init__(self, client: Tyxter) -> None:
         super().__init__(client)
         self.inbound_messages = SandboxInboundMessagesResource(self._client)
         self.templates = SandboxTemplatesResource(self._client)
         self.payments = SandboxPaymentsResource(self._client)
+        self.llm = SandboxLLMResource(self._client)
 
     def quickstart(self) -> SandboxQuickstartResponse:
         return cast(

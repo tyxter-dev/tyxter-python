@@ -6,6 +6,7 @@ from tyxter.types import (
     CreateMessageRequest,
     ListMessagesResponse,
     MessageDetailResponse,
+    MessageDirection,
     MessageResponse,
     OutboundMessage,
     SendFlowMessageInput,
@@ -130,6 +131,7 @@ class MessagesResource(Resource):
         starting_after: str | None = None,
         status: str | None = None,
         batch_id: str | None = None,
+        direction: MessageDirection | None = None,
         include: Literal["payload"] | None = None,
     ) -> ListMessagesResponse:
         return cast(
@@ -142,6 +144,7 @@ class MessagesResource(Resource):
                     "starting_after": starting_after,
                     "status": status,
                     "batch_id": batch_id,
+                    "direction": direction,
                     "include": include,
                 },
             ),

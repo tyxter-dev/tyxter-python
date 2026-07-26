@@ -101,12 +101,18 @@ def test_sandbox_resource_covers_quickstart_and_deterministic_controls() -> None
         idempotency_key="idem_payment",
         trace_id="trc_payment",
     )
+    client.sandbox.llm.set_failure(
+        {"failure": "provider_down", "ttl_seconds": 60},
+        idempotency_key="idem_llm",
+        trace_id="trc_llm",
+    )
 
     assert [(request.method, request.url.path) for request in seen] == [
         ("GET", "/v1/sandbox/quickstart"),
         ("POST", "/v1/sandbox/inbound-messages"),
         ("POST", "/v1/sandbox/templates/tmpl/123/status"),
         ("POST", "/v1/sandbox/payments/pay/123/status"),
+        ("POST", "/v1/sandbox/llm/failure"),
     ]
     assert str(seen[2].url) == "https://api.test/v1/sandbox/templates/tmpl%2F123/status"
     assert str(seen[3].url) == "https://api.test/v1/sandbox/payments/pay%2F123/status"
@@ -115,6 +121,9 @@ def test_sandbox_resource_covers_quickstart_and_deterministic_controls() -> None
     assert seen[2].headers["tyxter-trace-id"] == "trc_template"
     assert seen[3].headers["idempotency-key"] == "idem_payment"
     assert seen[3].headers["tyxter-trace-id"] == "trc_payment"
+    assert body(seen[4]) == {"failure": "provider_down", "ttl_seconds": 60}
+    assert seen[4].headers["idempotency-key"] == "idem_llm"
+    assert seen[4].headers["tyxter-trace-id"] == "trc_llm"
 
 
 def test_webhook_events_resource_covers_listen_inspect_and_resend_routes() -> None:

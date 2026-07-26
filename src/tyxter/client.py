@@ -20,6 +20,7 @@ from .resources import (
     BatchesResource,
     BillingResource,
     ContactsResource,
+    DataRetentionResource,
     FeedbackResource,
     FiscalResource,
     FlowsResource,
@@ -96,6 +97,7 @@ class Tyxter:
         self.rate_cards = RateCardsResource(self)
         self.batches = BatchesResource(self)
         self.contacts = ContactsResource(self)
+        self.data_retention = DataRetentionResource(self)
         self.feedback = FeedbackResource(self)
         self.fiscal = FiscalResource(self)
         self.flows = FlowsResource(self)
