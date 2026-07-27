@@ -45,6 +45,7 @@ def test_ai_agents_cover_all_routes_with_manifest_headers() -> None:
     client.ai_agents.complete(
         "agent/1",
         {"messages": [{"role": "user", "content": "Hello"}]},
+        idempotency_key="idem_ai_completion",
         trace_id="trc_completion",
     )
     client.ai_agents.list_prompt_versions("agent/1", limit=5)
@@ -56,6 +57,7 @@ def test_ai_agents_cover_all_routes_with_manifest_headers() -> None:
     assert str(seen[2].url) == "https://api.test/v1/ai-agents/agent%2F1"
     assert body(seen[3]) == {"enabled": False}
     assert seen[4].headers["tyxter-trace-id"] == "trc_completion"
+    assert seen[4].headers["idempotency-key"] == "idem_ai_completion"
     assert body(seen[4])["messages"] == [{"role": "user", "content": "Hello"}]
     assert seen[5].url.query.decode() == "limit=5"
     assert seen[6].url.query.decode() == "starting_after=log_1"
@@ -80,7 +82,9 @@ def test_automations_cover_crud_versions_runs_and_webhooks() -> None:
     client.automations.publish("auto/1", {"version_id": "ver_1"}, idempotency_key="idem_publish")
     client.automations.pause("auto/1")
     client.automations.resume("auto/1")
-    client.automations.rotate_webhook_secret("auto/1", "order/created")
+    client.automations.rotate_webhook_secret(
+        "auto/1", "order/created", idempotency_key="idem_rotate_secret"
+    )
     client.automations.create_run(
         "auto/1", {"input": {"order_id": "ord_1"}}, idempotency_key="idem_run"
     )
@@ -104,6 +108,7 @@ def test_automations_cover_crud_versions_runs_and_webhooks() -> None:
     assert str(seen[9].url).endswith(
         "/automations/auto%2F1/webhook-triggers/order%2Fcreated/rotate-secret"
     )
+    assert seen[9].headers["idempotency-key"] == "idem_rotate_secret"
     assert seen[10].headers["idempotency-key"] == "idem_run"
     assert seen[11].url.query.decode() == "status=completed"
     assert str(seen[12].url).endswith("/automation-runs/run%2F1")

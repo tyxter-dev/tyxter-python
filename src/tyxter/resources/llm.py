@@ -17,8 +17,15 @@ from ._base import Resource
 
 
 class LLMRoutesResource(Resource):
-    def upsert(self, payload: UpsertLLMRouteRequest) -> LLMRouteResponse:
-        return cast(LLMRouteResponse, self._request("PUT", "/v1/llm-routes", json=payload))
+    def upsert(
+        self, payload: UpsertLLMRouteRequest, *, idempotency_key: str | None = None
+    ) -> LLMRouteResponse:
+        return cast(
+            LLMRouteResponse,
+            self._request(
+                "PUT", "/v1/llm-routes", json=payload, idempotency_key=idempotency_key
+            ),
+        )
 
     def retrieve(self, *, phone_number_id: str | None = None) -> LLMRouteResponse:
         return cast(
@@ -59,10 +66,20 @@ class LLMRoutesResource(Resource):
             ),
         )
 
-    def delete(self, *, phone_number_id: str | None = None) -> DeleteLLMRouteResponse:
+    def delete(
+        self,
+        *,
+        phone_number_id: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> DeleteLLMRouteResponse:
         return cast(
             DeleteLLMRouteResponse,
-            self._request("DELETE", "/v1/llm-routes", params={"phone_number_id": phone_number_id}),
+            self._request(
+                "DELETE",
+                "/v1/llm-routes",
+                params={"phone_number_id": phone_number_id},
+                idempotency_key=idempotency_key,
+            ),
         )
 
 

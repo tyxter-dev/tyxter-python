@@ -69,6 +69,7 @@ class AIAgentsResource(Resource):
         agent_id: str,
         payload: AIAgentCompletionRequest,
         *,
+        idempotency_key: str | None = None,
         trace_id: str | None = None,
     ) -> AIAgentCompletionResponse:
         return cast(
@@ -77,6 +78,7 @@ class AIAgentsResource(Resource):
                 "POST",
                 f"/v1/ai-agents/{path_id('agent_id', agent_id)}/completions",
                 json=payload,
+                idempotency_key=idempotency_key,
                 trace_id=trace_id,
             ),
         )

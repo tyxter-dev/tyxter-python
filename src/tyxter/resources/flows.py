@@ -8,8 +8,15 @@ from ._base import Resource, path_id
 
 
 class FlowsResource(Resource):
-    def create(self, payload: CreateFlowRequest) -> FlowResponse:
-        return cast(FlowResponse, self._request("POST", "/v1/flows", json=payload))
+    def create(
+        self, payload: CreateFlowRequest, *, idempotency_key: str | None = None
+    ) -> FlowResponse:
+        return cast(
+            FlowResponse,
+            self._request(
+                "POST", "/v1/flows", json=payload, idempotency_key=idempotency_key
+            ),
+        )
 
     def list(
         self, *, limit: int | None = None, starting_after: str | None = None

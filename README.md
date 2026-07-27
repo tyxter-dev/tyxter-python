@@ -113,6 +113,9 @@ Tyxter does not implicitly retry writes. Reuse one idempotency key for retries
 of the same logical operation and choose your retry policy from the stable error
 fields:
 
+Flow creation, LLM route upsert/delete, AI Agent completion, and automation
+webhook-secret rotation all accept the `idempotency_key` keyword argument.
+
 ```python
 from tyxter import TyxterAPIError, TyxterConnectionError
 

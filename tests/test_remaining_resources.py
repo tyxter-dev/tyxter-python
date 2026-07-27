@@ -28,7 +28,10 @@ def test_flows_fiscal_and_feedback_cover_public_routes() -> None:
     seen: list[httpx.Request] = []
     client = make_client(seen)
 
-    client.flows.create({"name": "checkout", "flow_json": {"version": "1"}})
+    client.flows.create(
+        {"name": "checkout", "flow_json": {"version": "1"}},
+        idempotency_key="idem_flow_create",
+    )
     client.flows.list(limit=10, starting_after="flow_1")
     client.flows.retrieve("flow/2")
     client.flows.publish("flow/2", idempotency_key="idem_publish")
@@ -47,6 +50,7 @@ def test_flows_fiscal_and_feedback_cover_public_routes() -> None:
     )
 
     assert body(seen[0]) == {"name": "checkout", "flow_json": {"version": "1"}}
+    assert seen[0].headers["idempotency-key"] == "idem_flow_create"
     assert seen[1].url.query.decode() == "limit=10&starting_after=flow_1"
     assert str(seen[2].url).endswith("/flows/flow%2F2")
     assert not seen[3].content
@@ -69,12 +73,15 @@ def test_llm_routes_and_completions_cover_queries_and_headers() -> None:
             "model": "gpt-test",
             "api_key": "secret-value",
             "system_prompt": "You are a helpful assistant for this messaging business.",
-        }
+        },
+        idempotency_key="idem_llm_route_upsert",
     )
     client.llm_routes.retrieve(phone_number_id="pn_1")
     client.llm_routes.update({"enabled": False}, phone_number_id="pn_1")
     client.llm_routes.list_prompt_versions(limit=5, phone_number_id="pn_1")
-    client.llm_routes.delete(phone_number_id="pn_1")
+    client.llm_routes.delete(
+        phone_number_id="pn_1", idempotency_key="idem_llm_route_delete"
+    )
     client.llm.complete(
         {"messages": [{"role": "user", "content": "Hello"}]},
         idempotency_key="idem_llm",
@@ -83,11 +90,13 @@ def test_llm_routes_and_completions_cover_queries_and_headers() -> None:
     client.llm.list_responses(limit=10, starting_after="log_1")
 
     assert body(seen[0])["provider"] == "openai"
+    assert seen[0].headers["idempotency-key"] == "idem_llm_route_upsert"
     assert seen[1].url.query.decode() == "phone_number_id=pn_1"
     assert body(seen[2]) == {"enabled": False}
     assert seen[2].url.query.decode() == "phone_number_id=pn_1"
     assert seen[3].url.query.decode() == "limit=5&phone_number_id=pn_1"
     assert seen[4].method == "DELETE"
+    assert seen[4].headers["idempotency-key"] == "idem_llm_route_delete"
     assert seen[5].headers["idempotency-key"] == "idem_llm"
     assert seen[5].headers["tyxter-trace-id"] == "trc_llm"
     assert seen[6].url.query.decode() == "limit=10&starting_after=log_1"

@@ -153,7 +153,11 @@ class AutomationsResource(Resource):
         )
 
     def rotate_webhook_secret(
-        self, automation_id: str, slug: str
+        self,
+        automation_id: str,
+        slug: str,
+        *,
+        idempotency_key: str | None = None,
     ) -> AutomationWebhookSecretResponse:
         return cast(
             AutomationWebhookSecretResponse,
@@ -161,6 +165,7 @@ class AutomationsResource(Resource):
                 "POST",
                 f"/v1/automations/{path_id('automation_id', automation_id)}"
                 f"/webhook-triggers/{path_id('slug', slug)}/rotate-secret",
+                idempotency_key=idempotency_key,
             ),
         )
 
