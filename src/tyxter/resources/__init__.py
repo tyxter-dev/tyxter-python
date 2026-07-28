@@ -20,6 +20,7 @@ from .flows import FlowsResource
 from .llm import LLMResource, LLMRoutesResource
 from .media import MediaResource
 from .messages import MessagesResource
+from .meta_signup_sessions import MetaSignupSessionsResource
 from .payments import PaymentsResource
 from .phone_numbers import PhoneNumbersResource
 from .provider_connections import (
@@ -55,6 +56,7 @@ __all__ = [
     "LLMRoutesResource",
     "MessagesResource",
     "MediaResource",
+    "MetaSignupSessionsResource",
     "PaymentsResource",
     "PhoneNumbersResource",
     "ProviderConnectionsResource",

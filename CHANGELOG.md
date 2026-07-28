@@ -21,6 +21,8 @@ based on Keep a Changelog, and versions follow Python packaging version rules.
   `include="payload"` expansion.
 - `data_retention` policy resource, `sandbox.llm.set_failure()` failure
   injection, and `provider_connections.complete_meta_registration()`.
+- Typed `meta_signup_sessions.create()` / `.retrieve()` coverage and a parity
+  gate between the typed and runtime error-type allowlists.
 
 ## [0.1.0a0] - 2026-07-14
 

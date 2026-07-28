@@ -5,6 +5,20 @@ from typing import Literal, cast
 
 from .types import ErrorFeedbackPointer, TyxterErrorType
 
+_SUPPORTED_ERROR_TYPES = {
+    "authentication_error",
+    "authorization_error",
+    "payment_required",
+    "validation_error",
+    "idempotency_conflict",
+    "rate_limited",
+    "not_found",
+    "conflict",
+    "provider_error",
+    "internal_error",
+    "service_unavailable",
+}
+
 
 class TyxterError(Exception):
     """Base exception for all Tyxter SDK errors."""
@@ -91,20 +105,7 @@ def _int_value(value: object) -> int | None:
 
 
 def _error_type(value: object) -> TyxterErrorType | Literal["api_error"]:
-    supported = {
-        "authentication_error",
-        "authorization_error",
-        "payment_required",
-        "validation_error",
-        "idempotency_conflict",
-        "rate_limited",
-        "not_found",
-        "conflict",
-        "provider_error",
-        "internal_error",
-        "service_unavailable",
-    }
-    if isinstance(value, str) and value in supported:
+    if isinstance(value, str) and value in _SUPPORTED_ERROR_TYPES:
         return cast(TyxterErrorType, value)
     return "api_error"
 

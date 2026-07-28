@@ -231,6 +231,11 @@ from .messages import (
     WhatsAppTextMessageInput,
     WhatsAppTTSMessageInput,
 )
+from .meta_signup_sessions import (
+    CreateMetaSignupSessionRequest,
+    MetaSignupSessionResponse,
+    MetaSignupSessionStatus,
+)
 from .payments import (
     AbacatePayProviderOptions,
     CreatePaymentRequest,
@@ -436,6 +441,7 @@ __all__ = [
     "CreateAgenticPaymentRequest",
     "CreateFeedbackRequest",
     "CreateFlowRequest",
+    "CreateMetaSignupSessionRequest",
     "CreateMessageBatchRequest",
     "CreateMessageRequest",
     "CreatePaymentRequest",
@@ -532,6 +538,8 @@ __all__ = [
     "MessagingChannelReadiness",
     "MerchantPaymentProvider",
     "MetaOnboardingConfigResponse",
+    "MetaSignupSessionResponse",
+    "MetaSignupSessionStatus",
     "MetaThroughputTier",
     "MessageBatchFailureExportResponse",
     "MessageBatchFailureExportRow",

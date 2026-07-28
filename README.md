@@ -79,7 +79,7 @@ The client exposes snake-case resource namespaces:
 - `automations`, `automation_runs`, and `automation_webhooks`
 - `batches`, `billing`, `contacts`, `data_retention`, `feedback`, `fiscal`,
   and `flows`
-- `llm`, `llm_routes`, `media`, `messages`, and `payments`
+- `llm`, `llm_routes`, `media`, `messages`, `meta_signup_sessions`, and `payments`
 - `phone_numbers`, `provider_connections`, and
   `provider_credential_setup_sessions`
 - `rate_cards`, `sandbox`, `templates`, `usage`, `webhook_endpoints`, and

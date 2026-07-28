@@ -144,6 +144,30 @@ def test_provider_connections_and_credential_setup_match_header_capabilities() -
     assert seen[10].headers["idempotency-key"] == "idem_complete"
 
 
+def test_meta_signup_sessions_cover_create_and_poll() -> None:
+    seen: list[httpx.Request] = []
+    client = make_client(seen)
+
+    client.meta_signup_sessions.create(
+        {
+            "return_url": "https://merchant.example/meta/callback",
+            "end_customer_ref": "customer_123",
+        },
+        idempotency_key="idem_meta_signup",
+    )
+    client.meta_signup_sessions.retrieve("mss/123")
+
+    assert seen[0].method == "POST"
+    assert str(seen[0].url) == "https://api.test/v1/meta-signup-sessions"
+    assert seen[0].headers["idempotency-key"] == "idem_meta_signup"
+    assert body(seen[0]) == {
+        "return_url": "https://merchant.example/meta/callback",
+        "end_customer_ref": "customer_123",
+    }
+    assert seen[1].method == "GET"
+    assert str(seen[1].url) == "https://api.test/v1/meta-signup-sessions/mss%2F123"
+
+
 def test_audiences_cover_crud_without_stale_js_headers() -> None:
     seen: list[httpx.Request] = []
     client = make_client(seen)

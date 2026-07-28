@@ -29,6 +29,7 @@ from .resources import (
     LLMRoutesResource,
     MediaResource,
     MessagesResource,
+    MetaSignupSessionsResource,
     PaymentsResource,
     PhoneNumbersResource,
     ProviderConnectionsResource,
@@ -89,6 +90,7 @@ class Tyxter:
         self.instagram = InstagramMessagesResource(self.messages)
         self.whatsapp_channels = WhatsAppChannelsResource(self.messages)
         self.media = MediaResource(self)
+        self.meta_signup_sessions = MetaSignupSessionsResource(self)
         self.payments = PaymentsResource(self)
         self.billing = BillingResource(self)
         self.phone_numbers = PhoneNumbersResource(self)

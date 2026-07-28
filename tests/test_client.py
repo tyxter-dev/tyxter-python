@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+from typing import get_args
+
 import httpx
 import pytest
 
 from tyxter import Tyxter, TyxterAPIError, TyxterConnectionError
+from tyxter.errors import _SUPPORTED_ERROR_TYPES
+from tyxter.types import TyxterErrorType
+
+
+def test_runtime_error_types_match_typed_contract() -> None:
+    assert set(get_args(TyxterErrorType)) == _SUPPORTED_ERROR_TYPES
 
 
 def test_request_sends_auth_json_headers_and_idempotency_key() -> None:
