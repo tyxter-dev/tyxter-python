@@ -102,6 +102,7 @@ def _error_type(value: object) -> TyxterErrorType | Literal["api_error"]:
         "conflict",
         "provider_error",
         "internal_error",
+        "service_unavailable",
     }
     if isinstance(value, str) and value in supported:
         return cast(TyxterErrorType, value)

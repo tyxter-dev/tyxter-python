@@ -15,6 +15,7 @@ TyxterErrorType: TypeAlias = Literal[
     "conflict",
     "provider_error",
     "internal_error",
+    "service_unavailable",
 ]
 
 
