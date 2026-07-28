@@ -78,6 +78,11 @@ class PhoneNumberResponse(TypedDict):
     messaging_limit_tier: str | None
     meta_throughput_tier: MetaThroughputTier | None
     meta_quality_rating: str | None
+    # When the Meta-reported health above was last read from Meta. ``None``
+    # means it has never been read yet; an older timestamp means those fields
+    # are as of that moment, since a failed refresh leaves both the values and
+    # this marker untouched.
+    meta_health_synced_at: str | None
     current_24h_unique_recipients: int
     verification_code: str | None
     verification_code_received_at: str | None
