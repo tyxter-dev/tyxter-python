@@ -13,9 +13,7 @@ class FlowsResource(Resource):
     ) -> FlowResponse:
         return cast(
             FlowResponse,
-            self._request(
-                "POST", "/v1/flows", json=payload, idempotency_key=idempotency_key
-            ),
+            self._request("POST", "/v1/flows", json=payload, idempotency_key=idempotency_key),
         )
 
     def list(

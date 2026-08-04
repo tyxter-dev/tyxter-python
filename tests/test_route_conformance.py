@@ -10,17 +10,15 @@ from typing import Any, cast
 import pytest
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PACKAGE_ROOT.parents[1]
-MANIFEST_PATH = (
-    REPO_ROOT
-    / "packages"
-    / "contracts"
-    / "api"
-    / "tests"
-    / "snapshots"
-    / "public-api-launch-endpoints.json"
-)
-QUERY_PARAMS_PATH = MANIFEST_PATH.with_name("public-api-query-params.json")
+# The canonical manifest is produced in the Tyxter Messaging monorepo, where it
+# is AST-verified against the mounted `v1` controllers. It is vendored here
+# under conformance/ rather than read across a repo boundary: the sync workflow
+# in that repo opens a PR here whenever either snapshot changes, so this gate
+# stays exactly as strong as it was in-tree. conformance/SOURCE_COMMIT records
+# the monorepo commit the current copies were taken from.
+CONFORMANCE_DIR = PACKAGE_ROOT / "conformance"
+MANIFEST_PATH = CONFORMANCE_DIR / "public-api-launch-endpoints.json"
+QUERY_PARAMS_PATH = CONFORMANCE_DIR / "public-api-query-params.json"
 
 # A resource moves out of this ledger only when every one of its manifest
 # routes has a typed SDK method and route-level tests. A newly introduced

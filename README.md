@@ -17,9 +17,11 @@ pip install tyxter
 For repository development:
 
 ```bash
-cd sdks/python
-pip install -e ".[dev]"
-pytest
+uv sync --locked --extra dev
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
+uv run pytest
 ```
 
 ## First message
@@ -210,3 +212,23 @@ python examples/broadcast_customer_list.py \
   --name "April promo" \
   --idempotency-key idem_april_promo_001
 ```
+
+## Route conformance
+
+`conformance/` holds a vendored copy of the canonical public-API manifest:
+
+- `public-api-launch-endpoints.json` — every launch route, its scope, query
+  schema, and whether it honors `Idempotency-Key` / `Trace-Id`.
+- `public-api-query-params.json` — the Zod-derived query-parameter names.
+- `SOURCE_COMMIT` — the Tyxter Messaging commit these copies were taken from.
+
+`tests/test_route_conformance.py` pins this package's resource surface to that
+manifest: a route in the manifest with no typed SDK method fails, an SDK method
+that hits a route the manifest does not define fails, and a query parameter or
+`Idempotency-Key` header that drifts from the contract fails.
+
+**Do not hand-edit these files to make a test pass.** They are generated in the
+Tyxter Messaging repo, where they are verified against the mounted `v1`
+controllers, and are updated here only by the automated sync PR. Editing them
+locally silences the gate instead of fixing the drift — if a sync PR turns the
+suite red, the correct fix is to add or correct the SDK method.

@@ -79,9 +79,7 @@ def test_llm_routes_and_completions_cover_queries_and_headers() -> None:
     client.llm_routes.retrieve(phone_number_id="pn_1")
     client.llm_routes.update({"enabled": False}, phone_number_id="pn_1")
     client.llm_routes.list_prompt_versions(limit=5, phone_number_id="pn_1")
-    client.llm_routes.delete(
-        phone_number_id="pn_1", idempotency_key="idem_llm_route_delete"
-    )
+    client.llm_routes.delete(phone_number_id="pn_1", idempotency_key="idem_llm_route_delete")
     client.llm.complete(
         {"messages": [{"role": "user", "content": "Hello"}]},
         idempotency_key="idem_llm",

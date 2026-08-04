@@ -1,0 +1,67 @@
+name: CI
+
+# Format, lint, strict type-check, and test the `tyxter` package on every
+# supported interpreter. This is the whole gate: the package has no services,
+# no database, and no network calls in tests, so a run is seconds of work.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install SDK and development dependencies
+        run: uv sync --locked --extra dev
+
+      # Each gate is its own step so a failure names itself in the UI. Format
+      # runs first but must not mask the rest: `ruff format --check` failing
+      # used to abort the job before the conformance suite ever ran, which is
+      # how a whitespace nit hid the gate that actually protects the public
+      # surface. `if: always()` keeps every gate reporting independently.
+      - name: Format
+        run: uv run --locked ruff format --check .
+
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: uv run --locked ruff check .
+
+      - name: Typecheck
+        if: ${{ !cancelled() }}
+        run: uv run --locked mypy
+
+      - name: Test and verify distributions
+        if: ${{ !cancelled() }}
+        run: uv run --locked pytest

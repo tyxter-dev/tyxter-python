@@ -1,0 +1,52 @@
+{
+  "CursorPaginationQuery": ["limit", "starting_after"],
+  "ListAgenticAuthorizationsQuery": ["customer_tax_id", "limit", "starting_after", "status"],
+  "ListAgenticBanksQuery": ["limit", "search"],
+  "ListAgenticPaymentsQuery": ["customer_tax_id", "limit", "starting_after", "status"],
+  "ListAIAgentPromptVersionsQuery": ["limit", "starting_after"],
+  "ListAIAgentResponseLogsQuery": ["limit", "starting_after"],
+  "ListAIAgentsQuery": ["include_archived", "limit", "starting_after"],
+  "ListAutomationRunsQuery": ["limit", "starting_after", "status"],
+  "ListAutomationsQuery": ["limit", "starting_after", "status"],
+  "ListBillingPackagesQuery": ["limit", "starting_after", "status"],
+  "ListContactsQuery": ["limit", "search", "starting_after", "status", "tag_id"],
+  "ListenWebhookEventsQuery": [
+    "cursor",
+    "event_type",
+    "event_types",
+    "limit",
+    "listen_session_id",
+    "start_at",
+    "wait_ms",
+    "webhook_endpoint_id"
+  ],
+  "ListFiscalDocumentsQuery": ["limit", "source_kind", "starting_after", "status"],
+  "ListInvoicesQuery": ["limit", "project_id", "starting_after"],
+  "ListLedgerEntriesQuery": ["environment", "limit", "source_type", "starting_after"],
+  "ListLLMResponseLogsQuery": ["limit", "starting_after"],
+  "ListLLMRoutePromptVersionsQuery": ["limit", "phone_number_id", "starting_after"],
+  "ListMediaAssetsRequest": ["kind", "lifecycle", "limit", "starting_after", "status"],
+  "ListMessagesQuery": ["batch_id", "direction", "include", "limit", "starting_after", "status"],
+  "ListPaymentsQuery": ["limit", "starting_after", "status"],
+  "ListPhoneNumbersQuery": ["limit", "starting_after", "status"],
+  "ListRateCardsQuery": ["currency", "limit", "starting_after"],
+  "ListUsageRecordsQuery": [
+    "environment",
+    "limit",
+    "meter_id",
+    "recorded_after",
+    "recorded_before",
+    "starting_after"
+  ],
+  "ListWebhookEventsQuery": [
+    "event_type",
+    "event_types",
+    "limit",
+    "starting_after",
+    "status",
+    "webhook_endpoint_id"
+  ],
+  "LLMRouteTargetQuery": ["phone_number_id"],
+  "RetrieveListenWebhookEventQuery": ["listen_session_id", "webhook_endpoint_id"],
+  "UsageQuery": ["environment", "group_by", "period_end", "period_start"]
+}

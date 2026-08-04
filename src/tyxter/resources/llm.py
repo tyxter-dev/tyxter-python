@@ -22,9 +22,7 @@ class LLMRoutesResource(Resource):
     ) -> LLMRouteResponse:
         return cast(
             LLMRouteResponse,
-            self._request(
-                "PUT", "/v1/llm-routes", json=payload, idempotency_key=idempotency_key
-            ),
+            self._request("PUT", "/v1/llm-routes", json=payload, idempotency_key=idempotency_key),
         )
 
     def retrieve(self, *, phone_number_id: str | None = None) -> LLMRouteResponse:

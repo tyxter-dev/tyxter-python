@@ -1,0 +1,195 @@
+name: Publish
+
+# Publishes `tyxter` to PyPI through Trusted Publishing. Configure the PyPI
+# project with this repository, this workflow filename, and the `pypi-publish`
+# environment; no long-lived API token is used.
+#
+# Release gate: in the monorepo this job required the commit to be an ancestor
+# of `origin/verified` (the deploy ref). A standalone repo has no such ref, so
+# the equivalent protection here is that the tagged commit must be reachable
+# from `main` — you cannot publish from a side branch or an arbitrary tag.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish"
+        required: true
+        type: string
+      release_channel:
+        description: "Release channel"
+        required: true
+        default: alpha
+        type: choice
+        options:
+          - alpha
+          - stable
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release-metadata:
+    name: Validate release target
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+      release_channel: ${{ steps.release.outputs.release_channel }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install version parser
+        run: python -m pip install 'packaging>=24,<27'
+
+      - name: Validate ancestry, version, channel, and PyPI state
+        id: release
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_RELEASE_CHANNEL: ${{ inputs.release_channel }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Ref $GITHUB_SHA is not reachable from origin/main. Publish only from reviewed history on main."
+            exit 1
+          fi
+
+          package_version="$(python -c 'from pathlib import Path; namespace = {}; exec(Path("src/tyxter/_version.py").read_text(), namespace); print(namespace["__version__"])')"
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            expected_version="${GITHUB_REF_NAME#v}"
+            if python -c 'from packaging.version import Version; import sys; raise SystemExit(not Version(sys.argv[1]).is_prerelease)' "$package_version"; then
+              release_channel="alpha"
+            else
+              release_channel="stable"
+            fi
+          else
+            expected_version="$INPUT_VERSION"
+            release_channel="$INPUT_RELEASE_CHANNEL"
+          fi
+
+          if [[ "$expected_version" != "$package_version" ]]; then
+            echo "::error::Release version $expected_version does not match package version $package_version."
+            exit 1
+          fi
+
+          if [[ "$release_channel" == "stable" ]] && python -c 'from packaging.version import Version; import sys; raise SystemExit(not Version(sys.argv[1]).is_prerelease)' "$package_version"; then
+            echo "::error::Refusing to publish prerelease $package_version as stable."
+            exit 1
+          fi
+          if [[ "$release_channel" == "alpha" ]] && ! python -c 'from packaging.version import Version; import sys; raise SystemExit(not Version(sys.argv[1]).is_prerelease)' "$package_version"; then
+            echo "::error::The alpha channel requires a prerelease version."
+            exit 1
+          fi
+
+          PYPI_VERSION="$package_version" python - <<'PY'
+          import os
+          import urllib.error
+          import urllib.request
+
+          url = f"https://pypi.org/pypi/tyxter/{os.environ['PYPI_VERSION']}/json"
+          try:
+              urllib.request.urlopen(url, timeout=20)
+          except urllib.error.HTTPError as error:
+              if error.code == 404:
+                  raise SystemExit(0)
+              raise
+          raise SystemExit(f"tyxter {os.environ['PYPI_VERSION']} is already published")
+          PY
+
+          echo "version=$package_version" >> "$GITHUB_OUTPUT"
+          echo "release_channel=$release_channel" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Verify Python ${{ matrix.python-version }}
+    needs: release-metadata
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install
+        run: uv sync --locked --extra dev
+
+      - name: Verify
+        run: |
+          uv run --locked ruff format --check .
+          uv run --locked ruff check .
+          uv run --locked mypy
+          uv run --locked pytest
+
+  publish:
+    name: Publish tyxter ${{ needs.release-metadata.outputs.version }}
+    needs:
+      - release-metadata
+      - verify
+    runs-on: ubuntu-latest
+    environment: pypi-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.3.2
+
+      - name: Build wheel and source distribution
+        run: uv build
+
+      - name: Install built wheel in a fresh environment
+        shell: bash
+        run: |
+          python -m venv .release-venv
+          .release-venv/bin/python -m pip install dist/*.whl
+          .release-venv/bin/python -c 'from tyxter import Tyxter, TyxterAPIError, WebhookSignatureVerifier; print(Tyxter, TyxterAPIError, WebhookSignatureVerifier)'
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: tyxter-${{ needs.release-metadata.outputs.version }}
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish to PyPI with trusted publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          attestations: true
