@@ -5,7 +5,7 @@ from typing import get_args
 import httpx
 import pytest
 
-from tyxter import Tyxter, TyxterAPIError, TyxterConnectionError
+from tyxter import Tyxter, TyxterAPIError, TyxterConnectionError, __version__
 from tyxter.errors import _SUPPORTED_ERROR_TYPES
 from tyxter.types import TyxterErrorType
 
@@ -39,7 +39,11 @@ def test_request_sends_auth_json_headers_and_idempotency_key() -> None:
     request = seen[0]
     assert str(request.url) == "https://api.test/v1/messages"
     assert request.headers["authorization"] == "Bearer tx_sandbox_test"
-    assert request.headers["user-agent"] == "tyxter-python/0.1.0a0"
+    # Derived from __version__, not hardcoded: the literal form made every
+    # version bump a test failure, which is noise rather than signal. The
+    # shape of the User-Agent is what this asserts; the version is whatever
+    # the package says it is.
+    assert request.headers["user-agent"] == f"tyxter-python/{__version__}"
     assert request.headers["accept"] == "application/json"
     assert request.headers["content-type"] == "application/json"
     assert request.headers["idempotency-key"] == "idem_123"

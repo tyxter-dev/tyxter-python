@@ -155,7 +155,10 @@ jobs:
       - release-metadata
       - verify
     runs-on: ubuntu-latest
-    environment: pypi-publish
+    # Must match BOTH the GitHub environment on this repo and the environment
+    # named in the PyPI trusted-publisher config — the OIDC claim carries it,
+    # and a mismatch fails the publish with an unhelpful permissions error.
+    environment: pypi
     permissions:
       contents: read
       id-token: write
