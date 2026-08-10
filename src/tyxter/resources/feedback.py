@@ -18,6 +18,8 @@ class FeedbackResource(Resource):
     ) -> FeedbackReceiptResponse:
         if idempotency_key is None:
             idempotency_key = str(uuid4())
+        elif not (idempotency_key := idempotency_key.strip()):
+            raise ValueError("idempotency_key must be a non-blank string")
         return cast(
             FeedbackReceiptResponse,
             self._request(

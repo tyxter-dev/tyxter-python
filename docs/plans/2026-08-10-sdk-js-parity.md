@@ -132,7 +132,7 @@ flowchart LR
 
   subgraph PA["Phase A — source parity"]
     A1["A1 — mirror published 0.5/0.6 surface ✅ 🔁×1"]
-    A2["A2 — mirror PR #636 Unreleased surface ⚠"]
+    A2["A2 — mirror PR #636 Unreleased surface ✅ 🔁×1"]
   end
 
   subgraph PB["Phase B — release candidate"]
@@ -147,7 +147,7 @@ flowchart LR
   IN4 -.-> A2
   A1 --> G1{"published-surface gate ✅"}
   G1 --> A2
-  A2 --> G2{"current-source parity gate"}
+  A2 --> G2{"current-source parity gate ✅"}
   G2 --> B1
   B1 --> LOCAL{"full local gate"}
   LOCAL --> FR{"whole-branch diff review"}
@@ -431,9 +431,13 @@ rerun the full gate and exact-head CI, then return for a ready/merge decision.
       correction round 1: APPROVE from contract and conformance reviewers; exact locked gate green
       (82 files formatted, Ruff clean, strict mypy clean, 75 tests); both snapshot hashes match
       canonical `39afdf4e` byte-for-byte.
-- [ ] A2 Mirror PR #636 Unreleased retry/BYOK surface — exact required-idempotency and provider
+- [x] A2 Mirror PR #636 Unreleased retry/BYOK surface — exact required-idempotency and provider
       typing parity — routing: requested=same worker/gpt-5.6-terra/xhigh; role=accepted preflight;
-      model/effort=runtime metadata unavailable; fallback=direct built-in worker.
+      model/effort=runtime metadata unavailable; fallback=direct built-in worker — review round 1:
+      REJECT (blank explicit feedback key omitted the now-required header; AST proof lacked runtime
+      coverage) — correction round 1: APPROVE from contract and conformance reviewers; exact locked
+      gate green (82 files formatted, Ruff clean, strict mypy clean, 85 tests); PR #636 manifest and
+      query hashes match `f03565b2` byte-for-byte.
 
 ## Phase B — release candidate
 

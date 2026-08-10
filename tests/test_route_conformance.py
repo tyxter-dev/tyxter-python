@@ -5,7 +5,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, TypeAlias, cast
 
 import pytest
 
@@ -62,6 +62,8 @@ REVIEWED_ROUTE_EXEMPTIONS = {
     "GET /v1/media/blobs/:param",
 }
 
+IdempotencyMode: TypeAlias = Literal["unsupported", "supported", "required"]
+
 
 @dataclass(frozen=True)
 class CoveredRoute:
@@ -69,7 +71,7 @@ class CoveredRoute:
     path: str
     source: str
     function: str
-    idempotency_key: bool
+    idempotency_key: IdempotencyMode
     trace_id_header: bool
     # Keys of the literal `params={...}` dict passed to _request, None when the
     # call sends no query params. A non-literal params expression is recorded as
@@ -138,6 +140,44 @@ def _string_expression(node: ast.expr) -> str | None:
     return None
 
 
+def _has_required_parameter(function: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> bool:
+    for argument, default in zip(function.args.kwonlyargs, function.args.kw_defaults, strict=True):
+        if argument.arg == name:
+            return default is None
+
+    positional = [*function.args.posonlyargs, *function.args.args]
+    required_count = len(positional) - len(function.args.defaults)
+    return any(argument.arg == name for argument in positional[:required_count])
+
+
+def _generates_idempotency_key(function: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    for child in ast.walk(function):
+        if isinstance(child, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "idempotency_key"
+            for target in child.targets
+        ):
+            return True
+        if (
+            isinstance(child, ast.AnnAssign)
+            and isinstance(child.target, ast.Name)
+            and child.target.id == "idempotency_key"
+        ):
+            return True
+    return False
+
+
+def _idempotency_mode(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+    *,
+    forwards_idempotency_key: bool,
+) -> IdempotencyMode:
+    if not forwards_idempotency_key:
+        return "unsupported"
+    if _has_required_parameter(function, "idempotency_key") or _generates_idempotency_key(function):
+        return "required"
+    return "supported"
+
+
 def extract_routes() -> list[CoveredRoute]:
     covered: list[CoveredRoute] = []
     resources_dir = PACKAGE_ROOT / "src" / "tyxter" / "resources"
@@ -164,21 +204,16 @@ def extract_routes() -> list[CoveredRoute]:
                 path = _string_expression(child.args[1])
                 if method is None or path is None or not path.startswith("/v1/"):
                     continue
-                forwarded = {
-                    keyword.arg
-                    for keyword in child.keywords
-                    if keyword.arg is not None
-                    and isinstance(keyword.value, ast.Name)
-                    and keyword.value.id == keyword.arg
-                }
+                forwarded = {keyword.arg for keyword in child.keywords if keyword.arg is not None}
                 covered.append(
                     CoveredRoute(
                         method=method,
                         path=path,
                         source=source_path.name,
                         function=node.name,
-                        idempotency_key=(
-                            "idempotency_key" in parameter_names and "idempotency_key" in forwarded
+                        idempotency_key=_idempotency_mode(
+                            node,
+                            forwards_idempotency_key="idempotency_key" in forwarded,
                         ),
                         trace_id_header=("trace_id" in parameter_names and "trace_id" in forwarded),
                         query_params=_query_param_keys(child),
@@ -276,7 +311,17 @@ def test_supported_headers_match_the_canonical_manifest(
     mismatches: list[str] = []
     for route in covered:
         endpoint = by_key[route.key]
-        expected_idempotency = endpoint["idempotency_key"] == "supported"
+        manifest_idempotency = str(endpoint["idempotency_key"])
+        expected_idempotency: IdempotencyMode
+        if manifest_idempotency == "none":
+            expected_idempotency = "unsupported"
+        elif manifest_idempotency in {"supported", "required"}:
+            expected_idempotency = cast(IdempotencyMode, manifest_idempotency)
+        else:
+            mismatches.append(
+                f"{route.key} has unknown manifest idempotency mode {manifest_idempotency}"
+            )
+            continue
         expected_trace = endpoint["trace_id_header"] == "supported"
         if route.idempotency_key != expected_idempotency:
             mismatches.append(
@@ -289,3 +334,12 @@ def test_supported_headers_match_the_canonical_manifest(
                 f"manifest={expected_trace} ({route.source}:{route.function})"
             )
     assert mismatches == []
+
+
+def test_required_idempotency_modes_cover_generated_and_caller_supplied_keys(
+    covered: list[CoveredRoute],
+) -> None:
+    modes = {route.key: route.idempotency_key for route in covered}
+
+    assert modes["POST /v1/feedback"] == "required"
+    assert modes["POST /v1/messages/:param/transcription/retry"] == "required"

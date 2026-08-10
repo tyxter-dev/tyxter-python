@@ -11,6 +11,19 @@ it is adopting the canonical line, not claiming four releases of its own. Both
 SDKs pin to the same `public-api-launch-endpoints.json` manifest through their
 own conformance suites.
 
+## [Unreleased]
+
+### Added
+
+- `messages.retry_transcription()` for bounded manual recovery of a failed
+  inbound-audio transcription. It requires a caller-supplied nonblank
+  `idempotency_key`; same-key retries replay the accepted receipt rather than
+  starting another generation.
+- `openai.stt` provider credential setup and a typed completion-result union,
+  so provider-connection, TTS, and STT completions expose only their matching
+  completion axis. This mirrors the current upstream SDK source and is not yet
+  a released Python SDK version.
+
 ## [0.4.0] - 2026-08-03
 
 First published release, and the point at which this package adopts the

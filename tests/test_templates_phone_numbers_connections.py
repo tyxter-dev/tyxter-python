@@ -6,6 +6,7 @@ from typing import cast
 import httpx
 
 from tyxter import Tyxter
+from tyxter.types import ProviderCredentialSetupSessionResponse
 
 
 def body(request: httpx.Request) -> dict[str, object]:
@@ -143,6 +144,35 @@ def test_provider_connections_and_credential_setup_match_header_capabilities() -
         "https://api.test/v1/provider-connections/pc%2F2/meta/complete-registration"
     )
     assert seen[10].headers["idempotency-key"] == "idem_complete"
+
+
+def test_provider_credential_setup_stt_and_legacy_response_constructor_are_supported() -> None:
+    seen: list[httpx.Request] = []
+    client = make_client(seen)
+
+    client.provider_credential_setup_sessions.create({"target": "openai.stt"})
+    legacy_response = ProviderCredentialSetupSessionResponse(
+        object="provider_credential_setup_session",
+        request_id="pcs_123",
+        target="openai.tts",
+        status="pending",
+        project_id="prj_123",
+        project_slug="demo",
+        environment_id="env_123",
+        environment="production",
+        setup_url="https://setup.example.test/pcs_123",
+        poll_url="https://api.example.test/v1/provider-credential-setup-sessions/pcs_123",
+        expires_at="2026-08-10T12:00:00Z",
+        completed_at=None,
+        denied_at=None,
+        completed_provider_connection_id=None,
+        completed_tts_provider=None,
+        created_at="2026-08-10T10:00:00Z",
+        updated_at="2026-08-10T10:00:00Z",
+    )
+
+    assert body(seen[0]) == {"target": "openai.stt"}
+    assert "completed_stt_provider" not in legacy_response
 
 
 def test_meta_signup_sessions_cover_create_and_poll() -> None:

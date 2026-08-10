@@ -10,7 +10,7 @@ from tyxter.types import (
     MetaOnboardingConfigResponse,
     ProviderConnectionResponse,
     ProviderConnectionStatusResponse,
-    ProviderCredentialSetupSessionResponse,
+    ProviderCredentialSetupSessionResult,
     RegisterMetaConnectionRequest,
     RotateProviderConnectionTokenRequest,
 )
@@ -24,9 +24,9 @@ class ProviderCredentialSetupSessionsResource(Resource):
         payload: CreateProviderCredentialSetupSessionRequest,
         *,
         idempotency_key: str | None = None,
-    ) -> ProviderCredentialSetupSessionResponse:
+    ) -> ProviderCredentialSetupSessionResult:
         return cast(
-            ProviderCredentialSetupSessionResponse,
+            ProviderCredentialSetupSessionResult,
             self._request(
                 "POST",
                 "/v1/provider-credential-setup-sessions",
@@ -35,9 +35,9 @@ class ProviderCredentialSetupSessionsResource(Resource):
             ),
         )
 
-    def retrieve(self, request_id: str) -> ProviderCredentialSetupSessionResponse:
+    def retrieve(self, request_id: str) -> ProviderCredentialSetupSessionResult:
         return cast(
-            ProviderCredentialSetupSessionResponse,
+            ProviderCredentialSetupSessionResult,
             self._request(
                 "GET",
                 f"/v1/provider-credential-setup-sessions/{path_id('request_id', request_id)}",

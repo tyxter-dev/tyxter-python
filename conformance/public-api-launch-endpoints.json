@@ -73,7 +73,20 @@
     "response_schema": "MessageMediaTranscriptResponse",
     "idempotency_key": "none",
     "trace_id_header": "supported",
-    "notes": "Explicitly opts an inbound audio message into asynchronous transcription. Repeated requests return the existing transcript job instead of duplicating work."
+    "notes": "Explicitly opts an inbound audio message into asynchronous transcription. A pending or succeeded receipt replays only when the requested language is omitted or matches; a failed receipt returns transcription_retry_required and points to the retry route. Create never purchases another transcription attempt."
+  },
+  {
+    "resource": "messages",
+    "operation": "retry_media_transcription",
+    "method": "POST",
+    "path": "/v1/messages/:message_id/transcription/retry",
+    "scope": "messages:write",
+    "request_schema": "RequestMessageMediaTranscription",
+    "query_schema": null,
+    "response_schema": "MessageMediaTranscriptResponse",
+    "idempotency_key": "required",
+    "trace_id_header": "supported",
+    "notes": "Reopens a failed inbound-audio transcription against its exact original media asset. A same-key replay returns the stored 202; a fresh key starts one bounded manual retry generation only for a distinct retry command and when the original source remains available."
   },
   {
     "resource": "messages",
@@ -1430,7 +1443,7 @@
     "request_schema": "CreateFeedbackRequest",
     "query_schema": null,
     "response_schema": "FeedbackReceiptResponse",
-    "idempotency_key": "supported",
+    "idempotency_key": "required",
     "trace_id_header": "supported",
     "notes": "Agent-facing failure reporting (ADR-025). Any valid live or sandbox key; no scope required; Idempotency-Key mandatory. Accepted even when production credit is exhausted. Submitter-asserted related_error and a flat string context are stored as untrusted data; tenant provenance is server-derived. Content is credential-redacted before storage. Returns a minimal receipt that never echoes the report."
   },
@@ -1749,7 +1762,8 @@
     "query_schema": null,
     "response_schema": "ProviderCredentialSetupSessionResponse",
     "idempotency_key": "supported",
-    "trace_id_header": "none"
+    "trace_id_header": "none",
+    "notes": "Supports capability-specific targets including production-only openai.stt; sandbox rejects that target with provider_credential_setup_stt_sandbox_unsupported because its deterministic transcription simulator needs no provider credential. During the safe two-phase BYOK rollout, openai.stt returns transcription_byok_runtime_inactive before validation or persistence and is retryable with the same Idempotency-Key after activation. The browser handoff accepts credentials; this public request and response never carry a plaintext provider secret."
   },
   {
     "resource": "provider_connections",
@@ -1761,7 +1775,8 @@
     "query_schema": null,
     "response_schema": "ProviderCredentialSetupSessionResponse",
     "idempotency_key": "none",
-    "trace_id_header": "none"
+    "trace_id_header": "none",
+    "notes": "Returns mutually exclusive sanitized completion axes. completed_stt_provider is openai only after an openai.stt session completes and no plaintext credential is returned."
   },
   {
     "resource": "provider_connections",
