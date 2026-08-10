@@ -47,14 +47,14 @@ clean, strict mypy found no issues in 81 source files, and 71 tests passed.
 
 ### Pre-ruled contract decisions
 
-| Decision            | Ruling                                                                                     | Reason                                                                                                                                                                                                                 |
-| ------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Parity target       | Mirror published JS 0.5.0/0.6.0 plus the additive Unreleased contract in messaging PR #636 | This makes Python source match the canonical JS source that issues #582/#587/#592 depend on.                                                                                                                           |
-| Version             | Prepare Python source at 0.6.0; record PR #636-only additions under Unreleased             | Both SDK source trees may contain Unreleased additions while retaining the last published version. No 0.6.0 Python artifact exists yet.                                                                                |
-| Wire behavior       | Add typed wrappers only; do not change the REST/OpenAPI contract                           | The canonical API owns the behavior. Python must serialize the same paths, query names, bodies, and supported/required headers.                                                                                        |
-| Snapshot provenance | Copy exact generated snapshots, never hand-edit individual rows                            | The first accepted section pinned messaging main `39afdf4e`; PR #636 was provisionally refreshed after main integration to `a426da83`. Refresh to the eventual merged canonical SHA before making the Python PR ready. |
-| Publication         | No tag, workflow dispatch, PyPI upload, or merge in this execution                         | Publication is immutable external state and PR #636 is not yet merged. This pass produces a reviewed draft candidate.                                                                                                  |
-| Sync credential     | Treat `SDK_PYTHON_SYNC_TOKEN` as an external release prerequisite                          | The workflow is already correct but the secret is absent/invalid. Its credential cannot be invented or committed.                                                                                                      |
+| Decision            | Ruling                                                                                     | Reason                                                                                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parity target       | Mirror published JS 0.5.0/0.6.0 plus the additive Unreleased contract in messaging PR #636 | This makes Python source match the canonical JS source that issues #582/#587/#592 depend on.                                                                                                                                             |
+| Version             | Prepare Python source at 0.6.0; record PR #636-only additions under Unreleased             | Both SDK source trees may contain Unreleased additions while retaining the last published version. No 0.6.0 Python artifact exists yet.                                                                                                  |
+| Wire behavior       | Add typed wrappers only; do not change the REST/OpenAPI contract                           | The canonical API owns the behavior. Python must serialize the same paths, query names, bodies, and supported/required headers.                                                                                                          |
+| Snapshot provenance | Copy exact generated snapshots, never hand-edit individual rows                            | The first accepted section pinned messaging main `39afdf4e`; PR #636 was provisionally refreshed after main integration and CI correction to `88e28c97`. Refresh to the eventual merged canonical SHA before making the Python PR ready. |
+| Publication         | No tag, workflow dispatch, PyPI upload, or merge in this execution                         | Publication is immutable external state and PR #636 is not yet merged. This pass produces a reviewed draft candidate.                                                                                                                    |
+| Sync credential     | Treat `SDK_PYTHON_SYNC_TOKEN` as an external release prerequisite                          | The workflow is already correct but the secret is absent/invalid. Its credential cannot be invented or committed.                                                                                                                        |
 
 ### Expensive or mutating lifecycle gate budget
 
@@ -182,7 +182,7 @@ Resolved before approval:
   obligation and cannot express `required`. A2 upgrades the conformance classifier and proves the
   existing feedback auto-key plus required retry key behavior.
 - **Premature canonical provenance** — PR #636 is not merged. After main integration, the candidate
-  provisionally pins the conflict-free head `a426da83` for local proof, but ready/merge stays behind
+  provisionally pins the conflict-free head `88e28c97` for local proof, but ready/merge stays behind
   a final canonical refresh.
 - **External secret conflated with code** — `SDK_PYTHON_SYNC_TOKEN` is not a repository fix. It is
   represented as an explicit external release prerequisite with zero secret mutations here.
@@ -465,9 +465,10 @@ rerun the full gate and exact-head CI, then return for a ready/merge decision.
 
 - Draft Python PR #1 is open. CI for Python 3.10, 3.11, 3.12, and 3.13 is green at the prior
   Python head `2b52318`.
-- PR #636 completed main integration and is conflict-free/mergeable at provisional head
-  `a426da83f21ced4c49d666d310874850d1629e8e`. Both vendored conformance JSON files match that
-  head byte-for-byte, and `conformance/SOURCE_COMMIT` now records it.
+- PR #636 completed main integration and its CI-only plumbing/test-timeout correction; it is
+  conflict-free/mergeable at provisional head `88e28c97e5fa5dcaf8352c36e8691ee77f65955f`.
+  Both unchanged vendored conformance JSON files match that head byte-for-byte, and
+  `conformance/SOURCE_COMMIT` now records it.
 - This is provisional evidence only. Making Python PR #1 ready still waits for PR #636 to merge,
   followed by the final canonical snapshot/SOURCE_COMMIT refresh and exact-head CI.
 - Provisional refresh gate: locked Ruff format/check and strict mypy passed for 82 files, route
@@ -482,7 +483,7 @@ rerun the full gate and exact-head CI, then return for a ready/merge decision.
 - [x] Wheel/sdist and clean-install audit pass once on final source.
 - [x] Branch is pushed and draft Python PR #1 is open; CI is green for Python 3.10–3.13 at
       `2b52318`; no merge/tag/PyPI mutation occurred.
-- [x] PR #636 main-integration/provisional provenance refresh is complete at `a426da83`.
+- [x] PR #636 main-integration/provisional provenance refresh is complete at `88e28c97`.
 - [ ] PR #636 merge, final canonical refresh, and exact-head CI remain explicit ready/merge gates.
 - [ ] Missing `SDK_PYTHON_SYNC_TOKEN` remains an explicit external release prerequisite.
 - [ ] Topology graph is annotated as executed and re-rendered.
