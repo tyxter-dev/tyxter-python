@@ -37,10 +37,12 @@ def test_media_direct_operations_match_routes_queries_and_trace_headers() -> Non
         lifecycle="library",
         status="ready",
         kind="image",
+        source="inbound_provider",
         trace_id="trc_media",
     )
     client.media.storage_usage(trace_id="trc_media")
     client.media.retrieve("asset/1", trace_id="trc_media")
+    client.media.create_download_url("asset/1", trace_id="trc_media")
     client.media.delete("asset/1", trace_id="trc_media")
 
     assert body(seen[0]) == {"kind": "image", "mime_type": "image/png", "byte_length": 3}
@@ -48,11 +50,14 @@ def test_media_direct_operations_match_routes_queries_and_trace_headers() -> Non
     assert str(seen[1].url) == "https://api.test/v1/media/uploads/asset%2F1/complete"
     assert not seen[1].content
     assert seen[1].headers["idempotency-key"] == "idem_complete"
-    assert seen[2].url.query.decode() == ("limit=10&lifecycle=library&status=ready&kind=image")
+    assert seen[2].url.query.decode() == (
+        "limit=10&lifecycle=library&status=ready&kind=image&source=inbound_provider"
+    )
     assert seen[3].url.path == "/v1/media/storage-usage"
     assert str(seen[4].url) == "https://api.test/v1/media/asset%2F1"
-    assert str(seen[5].url) == "https://api.test/v1/media/asset%2F1"
-    assert seen[5].method == "DELETE"
+    assert str(seen[5].url) == "https://api.test/v1/media/asset%2F1/download-url"
+    assert str(seen[6].url) == "https://api.test/v1/media/asset%2F1"
+    assert seen[6].method == "DELETE"
     for request in seen:
         assert request.headers["tyxter-trace-id"] == "trc_media"
 

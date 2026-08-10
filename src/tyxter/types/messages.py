@@ -26,6 +26,20 @@ class MessageIdentity(TypedDict):
     id: str
 
 
+class StructuredPhoneRecipient(TypedDict):
+    type: Literal["phone_e164"]
+    country_calling_code: str
+    national_number: str
+
+
+class StructuredPhoneInput(TypedDict):
+    country_calling_code: str
+    national_number: str
+
+
+MessageRecipient: TypeAlias = MessageIdentity | StructuredPhoneRecipient
+
+
 class TextMessagePayload(TypedDict):
     body: str
     preview_url: NotRequired[bool]
@@ -80,6 +94,101 @@ class InteractiveMessagePayload(TypedDict):
     footer: NotRequired[JSONObject]
 
 
+class OrderDetailsAmount(TypedDict):
+    value: int
+    offset: Literal[100]
+
+
+class OrderDetailsTax(TypedDict):
+    value: int
+    offset: Literal[100]
+    description: NotRequired[str]
+
+
+class OrderDetailsExpiration(TypedDict):
+    timestamp: str
+    description: str
+
+
+class OrderDetailsItem(TypedDict):
+    retailer_id: str
+    name: str
+    amount: OrderDetailsAmount
+    quantity: int
+    sale_amount: NotRequired[OrderDetailsAmount]
+
+
+class OrderDetailsShipping(TypedDict):
+    value: int
+    offset: Literal[100]
+    description: NotRequired[str]
+
+
+class OrderDetailsDiscount(TypedDict):
+    value: int
+    offset: Literal[100]
+    description: NotRequired[str]
+    discount_program_name: NotRequired[str]
+
+
+class NativePixOrder(TypedDict):
+    status: Literal["pending"]
+    tax: OrderDetailsTax
+    items: list[OrderDetailsItem]
+    subtotal: OrderDetailsAmount
+    catalog_id: NotRequired[str]
+    expiration: NotRequired[OrderDetailsExpiration]
+    shipping: NotRequired[OrderDetailsShipping]
+    discount: NotRequired[OrderDetailsDiscount]
+
+
+class NativePixDynamicCode(TypedDict):
+    code: str
+    merchant_name: str
+    key: str
+    key_type: Literal["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"]
+
+
+class NativePixPaymentSetting(TypedDict):
+    type: Literal["pix_dynamic_code"]
+    pix_dynamic_code: NativePixDynamicCode
+
+
+class NativePixText(TypedDict):
+    text: str
+
+
+class NativePixImageHeader(TypedDict):
+    type: Literal["image"]
+    link: str
+
+
+class NativePixOrderDetailsParameters(TypedDict):
+    reference_id: str
+    type: Literal["digital-goods", "physical-goods"]
+    payment_type: Literal["br"]
+    payment_settings: tuple[NativePixPaymentSetting]
+    currency: Literal["BRL"]
+    total_amount: OrderDetailsAmount
+    order: NotRequired[NativePixOrder]
+
+
+class NativePixOrderDetailsAction(TypedDict):
+    name: Literal["review_and_pay"]
+    parameters: NativePixOrderDetailsParameters
+
+
+class NativePixOrderDetailsMessagePayload(TypedDict):
+    type: Literal["order_details"]
+    body: NativePixText
+    action: NativePixOrderDetailsAction
+    header: NotRequired[NativePixImageHeader]
+    footer: NotRequired[NativePixText]
+
+
+InteractivePayload: TypeAlias = InteractiveMessagePayload | NativePixOrderDetailsMessagePayload
+
+
 class FlowMessagePayload(TypedDict):
     type: Literal["flow"]
     body: JSONObject
@@ -93,14 +202,14 @@ class OutboundMessage(TypedDict):
     text: NotRequired[TextMessagePayload]
     template: NotRequired[TemplateMessagePayload]
     media: NotRequired[MediaMessagePayload]
-    interactive: NotRequired[InteractiveMessagePayload]
+    interactive: NotRequired[InteractivePayload]
     flow: NotRequired[FlowMessagePayload]
 
 
 class CreateMessageRequest(TypedDict):
     channel: MessageChannel
     sender: MessageIdentity
-    recipient: MessageIdentity
+    recipient: MessageRecipient
     message: OutboundMessage
     metadata: NotRequired[JSONObject]
 
@@ -133,7 +242,7 @@ class SendInteractiveMessageInput(TypedDict):
     channel: MessageChannel
     sender: MessageIdentity
     recipient: MessageIdentity
-    interactive: InteractiveMessagePayload
+    interactive: InteractivePayload
     metadata: NotRequired[JSONObject]
 
 
@@ -149,6 +258,7 @@ class MessageResponse(TypedDict):
     id: str
     object: Literal["message"]
     status: str
+    status_reason: str | None
     channel: MessageChannel
     environment: Environment
     template_id: str | None
@@ -177,6 +287,45 @@ class MessageProviderError(TypedDict):
     error_user_msg: str | None
 
 
+class InboundMessageMediaFailure(TypedDict):
+    code: str
+    message: str
+
+
+class _InboundMessageMediaBase(TypedDict):
+    asset_id: str
+    kind: MediaKind
+    mime_type: str
+    byte_length: int
+    filename: str | None
+    provider_media_id: NotRequired[str]
+
+
+class InboundMessageMediaConsumed(_InboundMessageMediaBase):
+    status: Literal["consumed"]
+
+
+class InboundMessageMediaFailed(_InboundMessageMediaBase):
+    status: Literal["failed"]
+    failure: InboundMessageMediaFailure
+
+
+class InboundMessageMediaExpired(_InboundMessageMediaBase):
+    status: Literal["expired"]
+
+
+class InboundMessageMediaDeleted(_InboundMessageMediaBase):
+    status: Literal["deleted"]
+
+
+InboundMessageMediaDescriptor: TypeAlias = (
+    InboundMessageMediaConsumed
+    | InboundMessageMediaFailed
+    | InboundMessageMediaExpired
+    | InboundMessageMediaDeleted
+)
+
+
 class MessageSummaryResponse(TypedDict):
     id: str
     object: Literal["message"]
@@ -184,6 +333,7 @@ class MessageSummaryResponse(TypedDict):
     direction: MessageDirection
     type: str
     status: str
+    status_reason: str | None
     environment: Environment
     sender: MessageIdentity
     recipient: MessageIdentity
@@ -193,6 +343,7 @@ class MessageSummaryResponse(TypedDict):
     template_id: str | None
     template_version_id: str | None
     template_version: int | None
+    media: InboundMessageMediaDescriptor | None
     payload: JSONValue | None
     metadata: JSONValue | None
     error_code: str | None
@@ -201,6 +352,7 @@ class MessageSummaryResponse(TypedDict):
     trace_id: str
     created_at: str
     updated_at: str
+    redacted_at: str | None
     # Delivery-confirmation timeout stamp. Non-null once the provider accepted the
     # send but no delivery status ever arrived inside the platform's confirmation
     # window; the message is "sent" and stays "sent". Not a status: it clears the
@@ -211,6 +363,37 @@ class MessageSummaryResponse(TypedDict):
 
 class MessageDetailResponse(MessageSummaryResponse):
     events: list[MessageEventResponse]
+
+
+class RequestMessageMediaTranscription(TypedDict):
+    language: NotRequired[str]
+
+
+MessageMediaTranscriptStatus: TypeAlias = Literal["pending", "succeeded", "failed"]
+
+
+class MessageMediaTranscriptResponse(TypedDict):
+    id: str
+    object: Literal["message_media_transcript"]
+    message_id: str
+    media_asset_id: str
+    status: MessageMediaTranscriptStatus
+    provider: str | None
+    model: str | None
+    language: str | None
+    text: str | None
+    duration_seconds: int | None
+    error_code: str | None
+    error_message: str | None
+    trace_id: str
+    created_at: str
+    completed_at: str | None
+
+
+class TypingIndicatorResponse(TypedDict):
+    object: Literal["typing_indicator"]
+    message_id: str
+    status: Literal["accepted"]
 
 
 class ListMessagesResponse(TypedDict):
@@ -224,7 +407,7 @@ WhatsAppTextMessageInput = TypedDict(
     "WhatsAppTextMessageInput",
     {
         "from": Required[str],
-        "to": Required[str],
+        "to": Required[str | StructuredPhoneInput],
         "body": Required[str],
         "preview_url": NotRequired[bool],
         "metadata": NotRequired[JSONObject],
@@ -236,7 +419,7 @@ WhatsAppMediaMessageInput = TypedDict(
     "WhatsAppMediaMessageInput",
     {
         "from": Required[str],
-        "to": Required[str],
+        "to": Required[str | StructuredPhoneInput],
         "media": Required[MediaMessagePayload],
         "metadata": NotRequired[JSONObject],
     },
@@ -247,7 +430,7 @@ WhatsAppTTSMessageInput = TypedDict(
     "WhatsAppTTSMessageInput",
     {
         "from": Required[str],
-        "to": Required[str],
+        "to": Required[str | StructuredPhoneInput],
         "tts": Required[TTSMediaSource],
         "metadata": NotRequired[JSONObject],
     },
@@ -258,7 +441,7 @@ WhatsAppTemplateMessageInput = TypedDict(
     "WhatsAppTemplateMessageInput",
     {
         "from": Required[str],
-        "to": Required[str],
+        "to": Required[str | StructuredPhoneInput],
         "name": Required[str],
         "language": Required[str],
         "variables": NotRequired[dict[str, VariableValue]],
@@ -273,8 +456,8 @@ WhatsAppInteractiveMessageInput = TypedDict(
     "WhatsAppInteractiveMessageInput",
     {
         "from": Required[str],
-        "to": Required[str],
-        "interactive": Required[InteractiveMessagePayload],
+        "to": Required[str | StructuredPhoneInput],
+        "interactive": Required[InteractivePayload],
         "metadata": NotRequired[JSONObject],
     },
     total=False,
@@ -284,7 +467,7 @@ WhatsAppFlowMessageInput = TypedDict(
     "WhatsAppFlowMessageInput",
     {
         "from": Required[str],
-        "to": Required[str],
+        "to": Required[str | StructuredPhoneInput],
         "flow": Required[FlowMessagePayload],
         "metadata": NotRequired[JSONObject],
     },

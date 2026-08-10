@@ -27,6 +27,11 @@ class BatchTemplate(TypedDict):
     header_media: NotRequired[TemplateHeaderMedia]
 
 
+class MessageBatchPacingResponse(TypedDict):
+    deferred_recipient_count: int
+    estimated_windows: int
+
+
 CreateMessageBatchRequest = TypedDict(
     "CreateMessageBatchRequest",
     {
@@ -52,6 +57,7 @@ class MessageBatchResponse(TypedDict):
     name: str | None
     template_name: str | None
     recipient_count: int
+    pacing: MessageBatchPacingResponse | None
     enqueued_count: int
     sent_count: int
     failed_count: int

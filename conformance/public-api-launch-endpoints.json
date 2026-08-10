@@ -63,6 +63,31 @@
     "trace_id_header": "none"
   },
   {
+    "resource": "messages",
+    "operation": "request_media_transcription",
+    "method": "POST",
+    "path": "/v1/messages/:message_id/transcription",
+    "scope": "messages:write",
+    "request_schema": "RequestMessageMediaTranscription",
+    "query_schema": null,
+    "response_schema": "MessageMediaTranscriptResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "supported",
+    "notes": "Explicitly opts an inbound audio message into asynchronous transcription. Repeated requests return the existing transcript job instead of duplicating work."
+  },
+  {
+    "resource": "messages",
+    "operation": "retrieve_media_transcription",
+    "method": "GET",
+    "path": "/v1/messages/:message_id/transcription",
+    "scope": "messages:read",
+    "request_schema": null,
+    "query_schema": null,
+    "response_schema": "MessageMediaTranscriptResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "supported"
+  },
+  {
     "resource": "media",
     "operation": "list",
     "method": "GET",
@@ -150,6 +175,19 @@
   },
   {
     "resource": "media",
+    "operation": "create_download_url",
+    "method": "GET",
+    "path": "/v1/media/:asset_id/download-url",
+    "scope": "messages:read",
+    "request_schema": null,
+    "query_schema": null,
+    "response_schema": "MediaAssetDownloadResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "supported",
+    "notes": "Mints a short-lived Tyxter capability URL for a ready or consumed asset. The returned URL is the only supported customer download path for inbound provider media."
+  },
+  {
+    "resource": "media",
     "operation": "delete",
     "method": "DELETE",
     "path": "/v1/media/:asset_id",
@@ -171,6 +209,18 @@
     "response_schema": "CancelMessageResponse",
     "idempotency_key": "supported",
     "trace_id_header": "none"
+  },
+  {
+    "resource": "messages",
+    "operation": "typing",
+    "method": "POST",
+    "path": "/v1/messages/:message_id/typing",
+    "scope": "messages:send",
+    "request_schema": null,
+    "query_schema": null,
+    "response_schema": "TypingIndicatorResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "supported"
   },
   {
     "resource": "webhook_endpoints",
