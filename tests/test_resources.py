@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 from tyxter import Tyxter
+from tyxter.types import InteractiveMessagePayload, NativePixOrderDetailsMessagePayload
 
 
 def make_client() -> tuple[Tyxter, list[httpx.Request]]:
@@ -127,6 +128,118 @@ def test_messages_get_escapes_message_id() -> None:
         method="POST",
         url="https://api.test/v1/messages/msg%2F123/cancel",
     )
+
+
+def test_messages_transcription_and_typing_use_encoded_paths_and_trace_headers() -> None:
+    client, seen = make_client()
+
+    client.messages.request_transcription(
+        "msg/123",
+        {"language": "pt"},
+        trace_id="trc_transcription",
+    )
+    client.messages.retrieve_transcription("msg/123", trace_id="trc_retrieve")
+    client.messages.typing("msg/123", trace_id="trc_typing")
+
+    assert_request(
+        seen[0],
+        method="POST",
+        url="https://api.test/v1/messages/msg%2F123/transcription",
+        body={"language": "pt"},
+    )
+    assert seen[0].headers["tyxter-trace-id"] == "trc_transcription"
+    assert "idempotency-key" not in seen[0].headers
+    assert_request(
+        seen[1],
+        method="GET",
+        url="https://api.test/v1/messages/msg%2F123/transcription",
+    )
+    assert seen[1].headers["tyxter-trace-id"] == "trc_retrieve"
+    assert_request(
+        seen[2],
+        method="POST",
+        url="https://api.test/v1/messages/msg%2F123/typing",
+    )
+    assert seen[2].headers["tyxter-trace-id"] == "trc_typing"
+    assert "idempotency-key" not in seen[2].headers
+
+
+def test_whatsapp_builders_preserve_structured_recipients_and_native_pix() -> None:
+    client, seen = make_client()
+    order_details: NativePixOrderDetailsMessagePayload = {
+        "type": "order_details",
+        "header": {"type": "image", "link": "https://cdn.example.test/order.png"},
+        "body": {"text": "Review your order"},
+        "footer": {"text": "Tyxter Store"},
+        "action": {
+            "name": "review_and_pay",
+            "parameters": {
+                "reference_id": "order_123",
+                "type": "physical-goods",
+                "payment_type": "br",
+                "payment_settings": (
+                    {
+                        "type": "pix_dynamic_code",
+                        "pix_dynamic_code": {
+                            "code": "000201010212",
+                            "merchant_name": "Tyxter Store",
+                            "key": "merchant@example.com",
+                            "key_type": "EMAIL",
+                        },
+                    },
+                ),
+                "currency": "BRL",
+                "total_amount": {"value": 12990, "offset": 100},
+            },
+        },
+    }
+
+    client.whatsapp.send_text(
+        {
+            "from": "pn_123",
+            "to": {"country_calling_code": "55", "national_number": "11999999999"},
+            "body": "Hello",
+        }
+    )
+    client.whatsapp.send_interactive(
+        {
+            "from": "pn_123",
+            "to": "+5511999999999",
+            "interactive": order_details,
+        }
+    )
+
+    assert request_json(seen[0])["recipient"] == {
+        "type": "phone_e164",
+        "country_calling_code": "55",
+        "national_number": "11999999999",
+    }
+    interactive = request_json(seen[1])["message"]["interactive"]
+    assert interactive["type"] == "order_details"
+    assert interactive["header"] == {"type": "image", "link": "https://cdn.example.test/order.png"}
+    assert interactive["body"] == {"text": "Review your order"}
+    assert interactive["footer"] == {"text": "Tyxter Store"}
+    assert interactive["action"]["parameters"]["payment_settings"] == [
+        {
+            "type": "pix_dynamic_code",
+            "pix_dynamic_code": {
+                "code": "000201010212",
+                "merchant_name": "Tyxter Store",
+                "key": "merchant@example.com",
+                "key_type": "EMAIL",
+            },
+        }
+    ]
+
+
+def test_interactive_message_payload_remains_runtime_callable() -> None:
+    payload = InteractiveMessagePayload(
+        type="button",
+        body={"text": "Choose one"},
+        action={"buttons": [{"type": "reply", "reply": {"id": "one", "title": "One"}}]},
+    )
+
+    assert payload["type"] == "button"
 
 
 def test_batches_resource_paths_and_payloads() -> None:

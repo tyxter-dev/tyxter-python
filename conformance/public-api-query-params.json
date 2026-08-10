@@ -25,7 +25,7 @@
   "ListLedgerEntriesQuery": ["environment", "limit", "source_type", "starting_after"],
   "ListLLMResponseLogsQuery": ["limit", "starting_after"],
   "ListLLMRoutePromptVersionsQuery": ["limit", "phone_number_id", "starting_after"],
-  "ListMediaAssetsRequest": ["kind", "lifecycle", "limit", "starting_after", "status"],
+  "ListMediaAssetsRequest": ["kind", "lifecycle", "limit", "source", "starting_after", "status"],
   "ListMessagesQuery": ["batch_id", "direction", "include", "limit", "starting_after", "status"],
   "ListPaymentsQuery": ["limit", "starting_after", "status"],
   "ListPhoneNumbersQuery": ["limit", "starting_after", "status"],

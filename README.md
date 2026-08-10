@@ -62,6 +62,49 @@ print(account["environment"]["kind"], detail["status"], message["trace_id"])
 
 Set `base_url="http://localhost:3001"` when using the local stack.
 
+## Native Pix order details
+
+WhatsApp interactive sends accept the existing button/list payloads and the typed
+native `order_details` Pix variant. A recipient can remain an E.164 string or use
+the structured calling-code form; the SDK sends the latter unchanged as the public
+API's `country_calling_code` and `national_number` fields.
+
+```python
+client.whatsapp.send_interactive(
+    {
+        "from": sender_id,
+        "to": {"country_calling_code": "55", "national_number": "11999999999"},
+        "interactive": {
+            "type": "order_details",
+            "header": {"type": "image", "link": "https://cdn.example.test/order.png"},
+            "body": {"text": "Review and pay"},
+            "footer": {"text": "Tyxter Store"},
+            "action": {
+                "name": "review_and_pay",
+                "parameters": {
+                    "reference_id": "order_123",
+                    "type": "physical-goods",
+                    "payment_type": "br",
+                    "payment_settings": (
+                        {
+                            "type": "pix_dynamic_code",
+                            "pix_dynamic_code": {
+                                "code": "000201010212",
+                                "merchant_name": "Tyxter Store",
+                                "key": "merchant@example.com",
+                                "key_type": "EMAIL",
+                            },
+                        },
+                    ),
+                    "currency": "BRL",
+                    "total_amount": {"value": 12990, "offset": 100},
+                },
+            },
+        },
+    }
+)
+```
+
 The complete deterministic example at
 `examples/sandbox_send_and_verify.py` sends a sandbox message, retrieves it,
 polls the public webhook-listen API, and verifies the returned raw-body

@@ -116,7 +116,7 @@ def test_provider_connections_and_credential_setup_match_header_capabilities() -
         {"display_name": "Meta", "access_token": "token", "channel": "whatsapp"}
     )
     client.provider_connections.exchange_meta_oauth(
-        {"code": "code", "waba_id": "waba", "phone_number_id": "phone"}
+        {"code": "code", "signup_session_id": "signup_123"}
     )
     client.provider_connections.retrieve("pc/2")
     client.provider_connections.rotate_token("pc/2", {"access_token": "new"})
@@ -131,6 +131,7 @@ def test_provider_connections_and_credential_setup_match_header_capabilities() -
     assert seen[1].url.path.endswith("/status")
     assert seen[2].url.path.endswith("/meta/onboarding")
     assert body(seen[3])["access_token"] == "token"
+    assert body(seen[4]) == {"code": "code", "signup_session_id": "signup_123"}
     assert all("idempotency-key" not in request.headers for request in seen[:8])
     assert str(seen[5].url) == "https://api.test/v1/provider-connections/pc%2F2"
     assert body(seen[6]) == {"access_token": "new"}

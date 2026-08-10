@@ -7,13 +7,16 @@ from tyxter.types import (
     ListMessagesResponse,
     MessageDetailResponse,
     MessageDirection,
+    MessageMediaTranscriptResponse,
     MessageResponse,
     OutboundMessage,
+    RequestMessageMediaTranscription,
     SendFlowMessageInput,
     SendInteractiveMessageInput,
     SendMediaMessageInput,
     SendTemplateMessageInput,
     SendTextMessageInput,
+    TypingIndicatorResponse,
 )
 
 from ._base import Resource, path_id
@@ -115,6 +118,38 @@ class MessagesResource(Resource):
     def retrieve(self, message_id: str) -> MessageDetailResponse:
         return self.get(message_id)
 
+    def request_transcription(
+        self,
+        message_id: str,
+        payload: RequestMessageMediaTranscription | None = None,
+        *,
+        trace_id: str | None = None,
+    ) -> MessageMediaTranscriptResponse:
+        return cast(
+            MessageMediaTranscriptResponse,
+            self._request(
+                "POST",
+                f"/v1/messages/{path_id('message_id', message_id)}/transcription",
+                json={} if payload is None else payload,
+                trace_id=trace_id,
+            ),
+        )
+
+    def retrieve_transcription(
+        self,
+        message_id: str,
+        *,
+        trace_id: str | None = None,
+    ) -> MessageMediaTranscriptResponse:
+        return cast(
+            MessageMediaTranscriptResponse,
+            self._request(
+                "GET",
+                f"/v1/messages/{path_id('message_id', message_id)}/transcription",
+                trace_id=trace_id,
+            ),
+        )
+
     def cancel(
         self,
         message_id: str,
@@ -127,6 +162,21 @@ class MessagesResource(Resource):
                 "POST",
                 f"/v1/messages/{path_id('message_id', message_id)}/cancel",
                 idempotency_key=idempotency_key,
+            ),
+        )
+
+    def typing(
+        self,
+        message_id: str,
+        *,
+        trace_id: str | None = None,
+    ) -> TypingIndicatorResponse:
+        return cast(
+            TypingIndicatorResponse,
+            self._request(
+                "POST",
+                f"/v1/messages/{path_id('message_id', message_id)}/typing",
+                trace_id=trace_id,
             ),
         )
 

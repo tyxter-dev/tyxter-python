@@ -84,6 +84,7 @@ class PhoneNumberResponse(TypedDict):
     # this marker untouched.
     meta_health_synced_at: str | None
     current_24h_unique_recipients: int
+    remaining_messaging_allowance_estimate: int | None
     verification_code: str | None
     verification_code_received_at: str | None
     monthly_fee_brl: str | None

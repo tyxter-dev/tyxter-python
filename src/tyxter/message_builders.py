@@ -8,7 +8,9 @@ from tyxter.types import (
     MediaMessagePayload,
     MessageChannel,
     MessageIdentityType,
+    MessageRecipient,
     OutboundMessage,
+    StructuredPhoneInput,
     TemplateMessagePayload,
     TextMessagePayload,
     WhatsAppChannelMediaMessageInput,
@@ -168,14 +170,24 @@ def _request(
     sender_type: MessageIdentityType,
     sender_id: str,
     recipient_type: MessageIdentityType,
-    recipient_id: str,
+    recipient_id: str | StructuredPhoneInput,
     message: OutboundMessage,
     metadata: JSONObject | None,
 ) -> CreateMessageRequest:
+    recipient: MessageRecipient
+    if isinstance(recipient_id, str):
+        recipient = {"type": recipient_type, "id": recipient_id}
+    else:
+        recipient = {
+            "type": "phone_e164",
+            "country_calling_code": recipient_id["country_calling_code"],
+            "national_number": recipient_id["national_number"],
+        }
+
     request: CreateMessageRequest = {
         "channel": channel,
         "sender": {"type": sender_type, "id": sender_id},
-        "recipient": {"type": recipient_type, "id": recipient_id},
+        "recipient": recipient,
         "message": message,
     }
     if metadata is not None:

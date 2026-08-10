@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, TypeAlias
 
-from typing_extensions import NotRequired, TypedDict
+from typing_extensions import NotRequired, Required, TypedDict
 
 from .common import Environment
 
@@ -66,18 +66,25 @@ class RegisterMetaConnectionRequest(TypedDict):
     token_expires_at: NotRequired[str | None]
 
 
-class ExchangeMetaOAuthCodeRequest(TypedDict):
-    code: str
-    waba_id: str
-    phone_number_id: str
+class ExchangeMetaOAuthCodeRequest(TypedDict, total=False):
+    code: Required[str]
+    waba_id: NotRequired[str]
+    phone_number_id: NotRequired[str]
     display_name: NotRequired[str]
     business_id: NotRequired[str]
+    signup_session_id: NotRequired[str]
 
 
 class RotateProviderConnectionTokenRequest(TypedDict):
     access_token: str
     token_source: NotRequired[ProviderTokenSource]
     token_expires_at: NotRequired[str | None]
+
+
+class ProviderConnectionRestriction(TypedDict):
+    restriction_type: str
+    expiration: str | None
+    remediation: str | None
 
 
 class ProviderConnectionResponse(TypedDict):
@@ -90,6 +97,7 @@ class ProviderConnectionResponse(TypedDict):
     environment: Environment
     waba_id: str | None
     phone_number_id: str | None
+    display_phone_number: NotRequired[str | None]
     ig_business_account_id: str | None
     page_id: str | None
     provider_account_id: str | None
@@ -100,6 +108,10 @@ class ProviderConnectionResponse(TypedDict):
     agent_id: str | None
     agentic_api_base_url: str | None
     webhook_secret_configured: bool
+    suspension_reason: NotRequired[str | None]
+    waba_ban_state: NotRequired[str | None]
+    account_review_status: NotRequired[str | None]
+    restrictions: NotRequired[list[ProviderConnectionRestriction] | None]
     credential_last_four: NotRequired[str | None]
     token_source: ProviderTokenSource | None
     token_expires_at: str | None

@@ -7,7 +7,8 @@ from typing_extensions import NotRequired, TypedDict
 from .messages import MediaKind
 
 MediaLifecycle: TypeAlias = Literal["single_use", "library"]
-MediaStatus: TypeAlias = Literal["pending", "ready", "consumed", "expired", "deleted"]
+MediaStatus: TypeAlias = Literal["pending", "ready", "consumed", "failed", "expired", "deleted"]
+MediaAssetSource: TypeAlias = Literal["customer", "inbound_provider"]
 
 
 class CreateMediaUploadRequest(TypedDict):
@@ -30,6 +31,9 @@ class MediaUploadResponse(TypedDict):
 class MediaAssetResponse(TypedDict):
     id: str
     object: Literal["media_asset"]
+    source: MediaAssetSource
+    provider: str | None
+    provider_media_id: str | None
     kind: MediaKind
     lifecycle: MediaLifecycle
     filename: str | None
@@ -42,6 +46,8 @@ class MediaAssetResponse(TypedDict):
     consumed_at: str | None
     consumed_by_message_id: str | None
     deleted_at: str | None
+    failure_code: str | None
+    failure_message: str | None
     trace_id: str | None
     created_at: str
     updated_at: str
@@ -58,6 +64,13 @@ class DeleteMediaAssetResponse(TypedDict):
     id: str
     object: Literal["media_asset"]
     deleted: Literal[True]
+
+
+class MediaAssetDownloadResponse(TypedDict):
+    id: str
+    object: Literal["media_asset_download"]
+    download_url: str
+    expires_at: str
 
 
 class MediaStorageUsageResponse(TypedDict):

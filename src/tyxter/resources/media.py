@@ -7,7 +7,9 @@ from tyxter.types import (
     CreateMediaUploadRequest,
     DeleteMediaAssetResponse,
     ListMediaAssetsResponse,
+    MediaAssetDownloadResponse,
     MediaAssetResponse,
+    MediaAssetSource,
     MediaKind,
     MediaLifecycle,
     MediaStatus,
@@ -65,6 +67,21 @@ class MediaResource(Resource):
             ),
         )
 
+    def create_download_url(
+        self,
+        asset_id: str,
+        *,
+        trace_id: str | None = None,
+    ) -> MediaAssetDownloadResponse:
+        return cast(
+            MediaAssetDownloadResponse,
+            self._request(
+                "GET",
+                f"/v1/media/{path_id('asset_id', asset_id)}/download-url",
+                trace_id=trace_id,
+            ),
+        )
+
     def list(
         self,
         *,
@@ -73,6 +90,7 @@ class MediaResource(Resource):
         lifecycle: MediaLifecycle | None = None,
         status: MediaStatus | None = None,
         kind: MediaKind | None = None,
+        source: MediaAssetSource | None = None,
         trace_id: str | None = None,
     ) -> ListMediaAssetsResponse:
         return cast(
@@ -86,6 +104,7 @@ class MediaResource(Resource):
                     "lifecycle": lifecycle,
                     "status": status,
                     "kind": kind,
+                    "source": source,
                 },
                 trace_id=trace_id,
             ),

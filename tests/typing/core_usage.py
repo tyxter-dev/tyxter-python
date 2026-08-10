@@ -5,9 +5,23 @@ from typing_extensions import assert_type
 from tyxter import Tyxter
 from tyxter.types import (
     CreateMessageRequest,
+    InboundMessageMediaDescriptor,
+    InboundMessageMediaFailed,
+    InboundMessageMediaFailure,
+    ListMediaAssetsResponse,
     ListMessagesResponse,
+    MediaAssetDownloadResponse,
+    MessageBatchPacingResponse,
+    MessageBatchResponse,
     MessageDetailResponse,
+    MessageMediaTranscriptResponse,
     MessageResponse,
+    MessageSummaryResponse,
+    NativePixOrderDetailsMessagePayload,
+    PhoneNumberResponse,
+    ProviderConnectionResponse,
+    RequestMessageMediaTranscription,
+    TypingIndicatorResponse,
 )
 
 
@@ -27,3 +41,71 @@ def core_usage(client: Tyxter) -> None:
     )
     assert_type(client.messages.retrieve("msg_123"), MessageDetailResponse)
     assert_type(client.messages.cancel("msg_123"), MessageDetailResponse)
+
+    transcription: RequestMessageMediaTranscription = {"language": "pt"}
+    assert_type(
+        client.messages.request_transcription("msg_123", transcription),
+        MessageMediaTranscriptResponse,
+    )
+    assert_type(
+        client.messages.retrieve_transcription("msg_123"),
+        MessageMediaTranscriptResponse,
+    )
+    assert_type(client.messages.typing("msg_123"), TypingIndicatorResponse)
+    assert_type(client.media.list(source="inbound_provider"), ListMediaAssetsResponse)
+    assert_type(client.media.create_download_url("mda_123"), MediaAssetDownloadResponse)
+
+    order_details: NativePixOrderDetailsMessagePayload = {
+        "type": "order_details",
+        "body": {"text": "Review your order"},
+        "action": {
+            "name": "review_and_pay",
+            "parameters": {
+                "reference_id": "order_123",
+                "type": "physical-goods",
+                "payment_type": "br",
+                "payment_settings": (
+                    {
+                        "type": "pix_dynamic_code",
+                        "pix_dynamic_code": {
+                            "code": "000201010212",
+                            "merchant_name": "Tyxter Store",
+                            "key": "merchant@example.com",
+                            "key_type": "EMAIL",
+                        },
+                    },
+                ),
+                "currency": "BRL",
+                "total_amount": {"value": 12990, "offset": 100},
+            },
+        },
+    }
+    client.whatsapp.send_interactive(
+        {
+            "from": "pn_123",
+            "to": {"country_calling_code": "55", "national_number": "11999999999"},
+            "interactive": order_details,
+        }
+    )
+
+
+def a1_response_shapes(
+    batch: MessageBatchResponse,
+    message: MessageSummaryResponse,
+    media: InboundMessageMediaDescriptor,
+    phone_number: PhoneNumberResponse,
+    provider_connection: ProviderConnectionResponse,
+) -> None:
+    assert_type(batch["pacing"], MessageBatchPacingResponse | None)
+    assert_type(message["status_reason"], str | None)
+    assert_type(message["media"], InboundMessageMediaDescriptor | None)
+    assert_type(message["redacted_at"], str | None)
+    assert_type(media["asset_id"], str)
+    if media["status"] == "failed":
+        assert_type(media, InboundMessageMediaFailed)
+        assert_type(media["failure"], InboundMessageMediaFailure)
+    assert_type(phone_number["remaining_messaging_allowance_estimate"], int | None)
+    if "display_phone_number" in provider_connection:
+        assert_type(provider_connection["display_phone_number"], str | None)
+    if "suspension_reason" in provider_connection:
+        assert_type(provider_connection["suspension_reason"], str | None)
