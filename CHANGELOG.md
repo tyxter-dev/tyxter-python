@@ -6,12 +6,15 @@ based on Keep a Changelog, and versions follow Python packaging version rules.
 **Version line.** This package shares its version number with the canonical
 [`@tyxter/sdk-js`](https://www.npmjs.com/package/@tyxter/sdk-js), so a given
 version means the same public route surface in both languages. That is why this
-package goes `0.1.0a0` → `0.4.0` rather than incrementing from its own history:
+package goes `0.1.0a0` → `0.6.0` rather than incrementing from its own history:
 it is adopting the canonical line, not claiming four releases of its own. Both
 SDKs pin to the same `public-api-launch-endpoints.json` manifest through their
 own conformance suites.
 
 ## [Unreleased]
+
+These source changes are a draft candidate only; this section does not publish
+an artifact to PyPI.
 
 ### Added
 
@@ -21,8 +24,35 @@ own conformance suites.
   starting another generation.
 - `openai.stt` provider credential setup and a typed completion-result union,
   so provider-connection, TTS, and STT completions expose only their matching
-  completion axis. This mirrors the current upstream SDK source and is not yet
-  a released Python SDK version.
+  completion axis through `create_result()` / `retrieve_result()`. Existing
+  `create()` / `retrieve()` calls keep the mutable legacy response type. This
+  mirrors the current upstream SDK source and is not yet a released Python SDK
+  version.
+
+## [0.6.0] - 2026-08-10
+
+This dated catch-up entry records the source version aligned to the published
+JavaScript 0.5.0/0.6.0 surface. It does **not** claim that a Python 0.6.0
+artifact has been published to PyPI.
+
+### Added
+
+- Message observability and capacity fields from the JavaScript 0.5.0 surface:
+  `status_reason` on message responses, batch pacing forecasts, phone-number
+  allowance estimates, and `messages.typing()` for an eligible inbound WhatsApp
+  message.
+- JavaScript 0.6.0's inbound-media and transcription surface: typed inbound
+  media descriptors on message reads/lists, `media.list(source=...)`,
+  `media.create_download_url()`, and request/retrieve transcription methods for
+  inbound WhatsApp audio.
+- Typed native WhatsApp `order_details` messages with Brazil Pix dynamic-code
+  settings, structured phone recipients, and current provider-connection
+  eligibility/restriction fields.
+
+At the historical published-JavaScript 0.5/0.6 parity checkpoint, both SDK
+sources exposed **170 of 172** manifest routes. The shared exemptions are
+`PUT` and `GET /v1/media/blobs/:token`: their signed capability token is the
+sole authority, so neither SDK wraps them in a bearer-authenticated method.
 
 ## [0.4.0] - 2026-08-03
 

@@ -8,16 +8,27 @@ The SDK is alpha software. Additive response fields are compatible and are
 tolerated at runtime. Removing or renaming a public method, field, or stable
 `error.code` requires a deprecation cycle.
 
+The `0.6.0` source line is a draft candidate. Editing the version or these docs
+does not publish a package, create a tag, or change PyPI state.
+
 ## Install
 
+`pip install tyxter` installs the latest artifact currently published on PyPI.
+It may not include the draft 0.6 APIs documented in this checkout. To evaluate
+the candidate, check out its branch or commit and install that checkout into the
+project environment:
+
 ```bash
-pip install tyxter
+git clone https://github.com/tyxter-dev/tyxter-python.git
+cd tyxter-python
+git checkout CANDIDATE_COMMIT_OR_BRANCH
+uv sync --locked --extra dev
+uv run python -c "import tyxter; print(tyxter.__version__)"
 ```
 
-For repository development:
+For routine development checks in that environment:
 
 ```bash
-uv sync --locked --extra dev
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy
@@ -105,18 +116,31 @@ client.whatsapp.send_interactive(
 )
 ```
 
-## Transcription retries
+Native Pix order details are for a Brazil WABA eligible for Meta's Payments API.
+The API accepts the request after its own checks, but Meta evaluates WABA and
+message eligibility at provider-send time, so acceptance does not promise
+delivery. This interactive message has no Tyxter `payment_id` resolution or
+order-status update, and Meta does not reconcile settlement; confirm settlement
+with the merchant or PSP.
 
-`messages.request_transcription()` never buys a second attempt: a pending or
-succeeded receipt is replayed, while a failed receipt returns
-`transcription_retry_required`. Start one bounded manual retry only with
-`messages.retry_transcription()`. Its caller-supplied, nonblank idempotency key
-is trimmed before sending; reuse that same key to replay the accepted retry
-without opening another generation. A retry always reuses the original source;
-it cannot replace media that has expired or is structurally unavailable. If the
-API returns `transcription_retry_rate_limited`, wait its `retry_after_ms` value
-and replay the same logical retry command with the same key. Use a fresh key
-only for a distinct retry command.
+## Inbound audio transcription and retries
+
+Use `messages.request_transcription(message_id, {"language": "pt"})` to opt an
+inbound WhatsApp-audio message into asynchronous transcription, then poll the
+same receipt with `messages.retrieve_transcription(message_id)`. The typed
+receipt exposes `pending`, `succeeded`, or `failed`, its text/error fields, and
+its `trace_id`. A pending or succeeded request replays its receipt only when the
+language is omitted or matches; a failed receipt returns
+`transcription_retry_required`.
+
+Requesting transcription never buys a second attempt. Start one bounded manual
+retry only with `messages.retry_transcription()`. Its caller-supplied, nonblank
+idempotency key is trimmed before sending; reuse that same key to replay the
+accepted retry without opening another generation. A retry always reuses the
+original source; it cannot replace media that has expired or is structurally
+unavailable. If the API returns `transcription_retry_rate_limited`, wait its
+`retry_after_ms` value and replay the same logical retry command with the same
+key. Use a fresh key only for a distinct retry command.
 
 ```python
 client.messages.retry_transcription(
@@ -126,6 +150,25 @@ client.messages.retry_transcription(
     trace_id="trc_transcription_retry",
 )
 ```
+
+## Inbound media, typing, and message observability
+
+Inbound message reads and lists expose a typed `media` descriptor with the
+Tyxter `mda_*` asset ID. Use `client.media.list(source="inbound_provider")` to
+find imported provider media and `client.media.create_download_url(asset_id)`
+to mint a fresh, short-lived `download_url`; do not assume a previous capability
+URL remains valid.
+
+For a WhatsApp typing indicator, pass the Tyxter message ID from
+`message.received.data.message_id`. The webhook envelope's top-level `id` is the
+event ID and `data.provider_message_id` is Meta's reference, so neither targets
+`client.messages.typing()`. The indicator response is an `accepted` receipt.
+
+Message accepts and reads expose `trace_id` for correlation. `retrieve()` also
+returns the message event timeline, while message rows expose `status_reason`,
+terminal error details, provider error information, and
+`delivery_unconfirmed_at` when provider acceptance has not yet been followed by
+a delivery status. An accepted send is not a delivery guarantee.
 
 The complete deterministic example at
 `examples/sandbox_send_and_verify.py` sends a sandbox message, retrieves it,
@@ -158,6 +201,11 @@ Request and response dictionaries are `TypedDict` contracts exported from
 `tyxter.types`. Write methods expose `idempotency_key` and `trace_id` only where
 the canonical endpoint manifest supports those headers.
 
+Provider credential setup keeps `create()` and `retrieve()` source-compatible
+with `ProviderCredentialSetupSessionResponse`, including mutable status and
+completion fields. Use `create_result()` or `retrieve_result()` when strict type
+narrowing must distinguish provider-connection, TTS, and STT completion axes.
+
 ## Pagination
 
 List methods return cursor pages. Continue with `next_cursor` only when
@@ -179,6 +227,14 @@ while True:
 Tyxter does not implicitly retry writes. Reuse one idempotency key for retries
 of the same logical operation and choose your retry policy from the stable error
 fields:
+
+- **Unsupported** endpoints do not expose an idempotency-key argument because
+  the manifest disallows that header.
+- **Supported** endpoints accept an optional caller key and forward it when one
+  is supplied.
+- **Required** endpoints always send a key. `feedback.create()` generates one
+  when omitted (and rejects an explicit blank key); transcription retry requires
+  the caller to supply a nonblank key.
 
 Flow creation, LLM route upsert/delete, AI Agent completion, and automation
 webhook-secret rotation all accept the `idempotency_key` keyword argument.
@@ -290,7 +346,14 @@ python examples/broadcast_customer_list.py \
 `tests/test_route_conformance.py` pins this package's resource surface to that
 manifest: a route in the manifest with no typed SDK method fails, an SDK method
 that hits a route the manifest does not define fails, and a query parameter or
-`Idempotency-Key` header that drifts from the contract fails.
+`Idempotency-Key` mode (`unsupported`, `supported`, or `required`) that drifts
+from the contract fails.
+
+The current source is a draft candidate covering **171 of 173** manifest rows.
+The two reviewed shared exemptions are `PUT` and
+`GET /v1/media/blobs/:token`: each uses its signed capability token as the sole
+authority and is intentionally not a bearer-authenticated SDK method. This count
+is source-conformance evidence, not a publication claim.
 
 **Do not hand-edit these files to make a test pass.** They are generated in the
 Tyxter Messaging repo, where they are verified against the mounted `v1`

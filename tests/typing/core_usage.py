@@ -21,6 +21,7 @@ from tyxter.types import (
     PhoneNumberResponse,
     ProviderConnectionResponse,
     ProviderCredentialSetupSessionCompletedOpenAISttResult,
+    ProviderCredentialSetupSessionResponse,
     ProviderCredentialSetupSessionResult,
     ProviderCredentialSetupSttProvider,
     RequestMessageMediaTranscription,
@@ -59,8 +60,17 @@ def core_usage(client: Tyxter) -> None:
     assert_type(client.media.create_download_url("mda_123"), MediaAssetDownloadResponse)
     assert_type(
         client.provider_credential_setup_sessions.create({"target": "openai.stt"}),
+        ProviderCredentialSetupSessionResponse,
+    )
+    setup_result = client.provider_credential_setup_sessions.create_result({"target": "openai.stt"})
+    assert_type(
+        setup_result,
         ProviderCredentialSetupSessionResult,
     )
+    retrieved_setup_result = client.provider_credential_setup_sessions.retrieve_result("pcs_123")
+    assert_type(retrieved_setup_result, ProviderCredentialSetupSessionResult)
+    provider_credential_setup_result_narrowing(setup_result)
+    provider_credential_setup_result_narrowing(retrieved_setup_result)
 
     order_details: NativePixOrderDetailsMessagePayload = {
         "type": "order_details",
@@ -125,3 +135,17 @@ def provider_credential_setup_result_narrowing(
         assert_type(result, ProviderCredentialSetupSessionCompletedOpenAISttResult)
         assert_type(result["completed_stt_provider"], ProviderCredentialSetupSttProvider)
         assert_type(result["completed_tts_provider"], None)
+
+
+def create(client: Tyxter) -> ProviderCredentialSetupSessionResponse:
+    return client.provider_credential_setup_sessions.create({"target": "openai.tts"})
+
+
+def mutate_legacy_provider_credential_setup_session(
+    result: ProviderCredentialSetupSessionResponse,
+) -> None:
+    result["target"] = "openai.stt"
+    result["status"] = "completed"
+    result["completed_provider_connection_id"] = "pcn_123"
+    result["completed_tts_provider"] = "openai"
+    result["completed_stt_provider"] = "openai"

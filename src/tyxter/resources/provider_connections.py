@@ -10,6 +10,7 @@ from tyxter.types import (
     MetaOnboardingConfigResponse,
     ProviderConnectionResponse,
     ProviderConnectionStatusResponse,
+    ProviderCredentialSetupSessionResponse,
     ProviderCredentialSetupSessionResult,
     RegisterMetaConnectionRequest,
     RotateProviderConnectionTokenRequest,
@@ -24,9 +25,9 @@ class ProviderCredentialSetupSessionsResource(Resource):
         payload: CreateProviderCredentialSetupSessionRequest,
         *,
         idempotency_key: str | None = None,
-    ) -> ProviderCredentialSetupSessionResult:
+    ) -> ProviderCredentialSetupSessionResponse:
         return cast(
-            ProviderCredentialSetupSessionResult,
+            ProviderCredentialSetupSessionResponse,
             self._request(
                 "POST",
                 "/v1/provider-credential-setup-sessions",
@@ -35,14 +36,28 @@ class ProviderCredentialSetupSessionsResource(Resource):
             ),
         )
 
-    def retrieve(self, request_id: str) -> ProviderCredentialSetupSessionResult:
+    def create_result(
+        self,
+        payload: CreateProviderCredentialSetupSessionRequest,
+        *,
+        idempotency_key: str | None = None,
+    ) -> ProviderCredentialSetupSessionResult:
         return cast(
             ProviderCredentialSetupSessionResult,
+            self.create(payload, idempotency_key=idempotency_key),
+        )
+
+    def retrieve(self, request_id: str) -> ProviderCredentialSetupSessionResponse:
+        return cast(
+            ProviderCredentialSetupSessionResponse,
             self._request(
                 "GET",
                 f"/v1/provider-credential-setup-sessions/{path_id('request_id', request_id)}",
             ),
         )
+
+    def retrieve_result(self, request_id: str) -> ProviderCredentialSetupSessionResult:
+        return cast(ProviderCredentialSetupSessionResult, self.retrieve(request_id))
 
 
 class ProviderConnectionsResource(Resource):

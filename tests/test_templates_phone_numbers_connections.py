@@ -175,6 +175,25 @@ def test_provider_credential_setup_stt_and_legacy_response_constructor_are_suppo
     assert "completed_stt_provider" not in legacy_response
 
 
+def test_provider_credential_setup_result_helpers_delegate_once_with_the_same_arguments() -> None:
+    seen: list[httpx.Request] = []
+    client = make_client(seen)
+
+    client.provider_credential_setup_sessions.create_result(
+        {"target": "openai.stt"},
+        idempotency_key="idem_stt_setup",
+    )
+    client.provider_credential_setup_sessions.retrieve_result("pcs/123")
+
+    assert len(seen) == 2
+    assert seen[0].method == "POST"
+    assert seen[0].url.path == "/v1/provider-credential-setup-sessions"
+    assert body(seen[0]) == {"target": "openai.stt"}
+    assert seen[0].headers["idempotency-key"] == "idem_stt_setup"
+    assert seen[1].method == "GET"
+    assert str(seen[1].url) == ("https://api.test/v1/provider-credential-setup-sessions/pcs%2F123")
+
+
 def test_meta_signup_sessions_cover_create_and_poll() -> None:
     seen: list[httpx.Request] = []
     client = make_client(seen)
