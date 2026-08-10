@@ -19,6 +19,10 @@ def test_package_exports_client_and_version() -> None:
     assert client.base_url == "http://localhost:3001"
 
 
+def test_package_source_version_tracks_the_shared_0_6_line() -> None:
+    assert __version__ == "0.6.0"
+
+
 def test_client_requires_api_key() -> None:
     try:
         Tyxter(api_key="")

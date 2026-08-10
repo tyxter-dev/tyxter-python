@@ -67,6 +67,12 @@ clean, strict mypy found no issues in 81 source files, and 71 tests passed.
 | PyPI publication                          | Final tag on main                        |                                                      0 | Explicitly outside this execution.                                                               |
 | GitHub secret mutation                    | Human-supplied cross-repo credential     |                                                      0 | No credential is available or authorized for storage.                                            |
 
+Execution note: the repository's ordinary `pytest` suite contains an isolated temporary archive
+build in `tests/test_distribution.py`, so baseline/section gates exercised ephemeral builds before
+the final review. The planned persistent `dist/` build, archive inspection, and clean-wheel install
+still ran exactly once after the final whole-branch review; those generated artifacts were removed
+after verification.
+
 ### Rules
 
 - Implementation is sequential; never run two implementers concurrently.
@@ -93,28 +99,28 @@ flowchart LR
 
 ### Goal 1 — Python exposes the same supported public surface as canonical JavaScript
 
-- [ ] Python covers the same 171 SDK routes as canonical JS: 173 manifest rows less the shared
+- [x] Python covers the same 171 SDK routes as canonical JS: 173 manifest rows less the shared
       two reviewed capability-token media blob exemptions.
-- [ ] Query parameters and all three idempotency modes (`unsupported`, `supported`, `required`)
+- [x] Query parameters and all three idempotency modes (`unsupported`, `supported`, `required`)
       match the canonical snapshots; trace headers match exactly.
-- [ ] Published JS 0.5.0/0.6.0 additions are typed and documented: pacing/allowance/status reason,
+- [x] Published JS 0.5.0/0.6.0 additions are typed and documented: pacing/allowance/status reason,
       native Pix, account health, inbound media, media source/download, transcription, and typing.
-- [ ] Existing button/list interactive construction and every existing test remain compatible.
+- [x] Existing button/list interactive construction and every existing test remain compatible.
 
 ### Goal 2 — PR #636 additions are represented without claiming premature release
 
-- [ ] `messages.retry_transcription()` requires a nonblank idempotency key, forwards optional
+- [x] `messages.retry_transcription()` requires a nonblank idempotency key, forwards optional
       trace/language, and preserves stable API errors without spending a retry on client misuse.
-- [ ] Provider credential setup types represent `openai.stt` and its mutually exclusive completed
+- [x] Provider credential setup types represent `openai.stt` and its mutually exclusive completed
       response axis.
-- [ ] The changelog separates shipped 0.6.0 parity from PR #636-only Unreleased additions.
+- [x] The changelog separates shipped 0.6.0 parity from PR #636-only Unreleased additions.
 - [ ] A draft Python PR is reviewable but remains blocked from ready/merge/publication until PR
       #636 is canonical and the final snapshot provenance is refreshed.
 
 ### Goal 3 — The candidate is distributable and future drift is visible
 
-- [ ] Strict formatting, lint, typing, route conformance, behavior, and distribution tests pass.
-- [ ] One wheel/sdist build contains the intended code, types, README, license, and `py.typed`; a
+- [x] Strict formatting, lint, typing, route conformance, behavior, and distribution tests pass.
+- [x] One wheel/sdist build contains the intended code, types, README, license, and `py.typed`; a
       clean temporary environment imports the built wheel as version 0.6.0.
 - [ ] The handoff names the unresolved `SDK_PYTHON_SYNC_TOKEN` prerequisite; no secret, tag, or
       registry state is mutated.
@@ -136,7 +142,7 @@ flowchart LR
   end
 
   subgraph PB["Phase B — release candidate"]
-    B1["B1 — metadata, docs, distribution candidate"]
+    B1["B1 — metadata, docs, distribution candidate ✅ 🔁×2"]
   end
 
   IN1 -.-> A1
@@ -149,12 +155,12 @@ flowchart LR
   G1 --> A2
   A2 --> G2{"current-source parity gate ✅"}
   G2 --> B1
-  B1 --> LOCAL{"full local gate"}
-  LOCAL --> FR{"whole-branch diff review"}
+  B1 --> LOCAL{"full local gate ✅"}
+  LOCAL --> FR{"whole-branch diff review ✅ 🔁×2"}
   FR -- findings --> FIX["same implementer correction"]
   FIX --> LOCAL
-  FR -- clean --> BUILD{"wheel/sdist + clean install ×1"}
-  BUILD --> G3{"distribution exit"}
+  FR -- clean --> BUILD{"wheel/sdist + clean install ×1 ✅"}
+  BUILD --> G3{"distribution exit ✅"}
   G3 --> DPR(["push + draft Python PR"])
   DPR --> HOLD{"wait for PR #636 merge + final snapshot SHA"}
   HOLD --> FINAL{"refresh + exact-head CI"}
@@ -441,16 +447,25 @@ rerun the full gate and exact-head CI, then return for a ready/merge decision.
 
 ## Phase B — release candidate
 
-- [ ] B1 Prepare non-publishing Python 0.6.0 candidate — docs/version/distribution are accurate —
+- [x] B1 Prepare non-publishing Python 0.6.0 candidate — docs/version/distribution are accurate —
       routing: requested=same worker/gpt-5.6-terra/xhigh; role=accepted preflight;
       model/effort=runtime metadata unavailable; fallback=direct built-in worker.
+      Whole-branch review round 1: REJECT (precise setup-session result was not assignable to the
+      legacy public response type; README install path could imply PyPI contains draft APIs;
+      archive metadata lacked an exact 0.6.0 assertion). Correction round 1 resolved assignment,
+      install, and archive findings, but whole-branch review round 2: REJECT because making legacy
+      response fields `ReadOnly` broke prior statically typed mutation. Correction round 2:
+      APPROVE from contract, conformance, and release reviewers; non-build gate green (82 files
+      formatted, Ruff clean, strict mypy clean, 86 tests excluding the archive builder); one final
+      `uv build` produced 0.6.0 wheel/sdist, archive inspection passed, and a fresh Python 3.13
+      environment imported version 0.6.0 plus representative parity resources.
 
 ## Completion
 
-- [ ] Every accepted section and ledger update is committed.
+- [x] Every accepted section and ledger update is committed.
 - [ ] Goals 1–3 local exit tests pass with exact command evidence.
-- [ ] Whole-branch final review is clean before the single artifact build.
-- [ ] Wheel/sdist and clean-install audit pass once on final source.
+- [x] Whole-branch final review is clean before the single artifact build.
+- [x] Wheel/sdist and clean-install audit pass once on final source.
 - [ ] Branch is pushed and a draft Python PR is opened; no merge/tag/PyPI mutation occurs.
 - [ ] PR #636 final canonical refresh and exact-head CI remain explicit ready/merge gates.
 - [ ] Missing `SDK_PYTHON_SYNC_TOKEN` remains an explicit external release prerequisite.
