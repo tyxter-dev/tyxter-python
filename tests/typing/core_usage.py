@@ -20,6 +20,9 @@ from tyxter.types import (
     NativePixOrderDetailsMessagePayload,
     PhoneNumberResponse,
     ProviderConnectionResponse,
+    ProviderCredentialSetupSessionCompletedOpenAISttResult,
+    ProviderCredentialSetupSessionResult,
+    ProviderCredentialSetupSttProvider,
     RequestMessageMediaTranscription,
     TypingIndicatorResponse,
 )
@@ -54,6 +57,10 @@ def core_usage(client: Tyxter) -> None:
     assert_type(client.messages.typing("msg_123"), TypingIndicatorResponse)
     assert_type(client.media.list(source="inbound_provider"), ListMediaAssetsResponse)
     assert_type(client.media.create_download_url("mda_123"), MediaAssetDownloadResponse)
+    assert_type(
+        client.provider_credential_setup_sessions.create({"target": "openai.stt"}),
+        ProviderCredentialSetupSessionResult,
+    )
 
     order_details: NativePixOrderDetailsMessagePayload = {
         "type": "order_details",
@@ -109,3 +116,12 @@ def a1_response_shapes(
         assert_type(provider_connection["display_phone_number"], str | None)
     if "suspension_reason" in provider_connection:
         assert_type(provider_connection["suspension_reason"], str | None)
+
+
+def provider_credential_setup_result_narrowing(
+    result: ProviderCredentialSetupSessionResult,
+) -> None:
+    if result["status"] == "completed" and result["target"] == "openai.stt":
+        assert_type(result, ProviderCredentialSetupSessionCompletedOpenAISttResult)
+        assert_type(result["completed_stt_provider"], ProviderCredentialSetupSttProvider)
+        assert_type(result["completed_tts_provider"], None)

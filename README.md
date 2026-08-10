@@ -105,6 +105,28 @@ client.whatsapp.send_interactive(
 )
 ```
 
+## Transcription retries
+
+`messages.request_transcription()` never buys a second attempt: a pending or
+succeeded receipt is replayed, while a failed receipt returns
+`transcription_retry_required`. Start one bounded manual retry only with
+`messages.retry_transcription()`. Its caller-supplied, nonblank idempotency key
+is trimmed before sending; reuse that same key to replay the accepted retry
+without opening another generation. A retry always reuses the original source;
+it cannot replace media that has expired or is structurally unavailable. If the
+API returns `transcription_retry_rate_limited`, wait its `retry_after_ms` value
+and replay the same logical retry command with the same key. Use a fresh key
+only for a distinct retry command.
+
+```python
+client.messages.retry_transcription(
+    "msg_123",
+    {"language": "pt"},
+    idempotency_key="transcription-retry-msg_123-1",
+    trace_id="trc_transcription_retry",
+)
+```
+
 The complete deterministic example at
 `examples/sandbox_send_and_verify.py` sends a sandbox message, retrieves it,
 polls the public webhook-listen API, and verifies the returned raw-body

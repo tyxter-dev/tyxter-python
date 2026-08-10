@@ -150,6 +150,29 @@ class MessagesResource(Resource):
             ),
         )
 
+    def retry_transcription(
+        self,
+        message_id: str,
+        payload: RequestMessageMediaTranscription,
+        *,
+        idempotency_key: str,
+        trace_id: str | None = None,
+    ) -> MessageMediaTranscriptResponse:
+        if not isinstance(idempotency_key, str) or not (
+            normalized_idempotency_key := idempotency_key.strip()
+        ):
+            raise ValueError("idempotency_key must be a non-blank string")
+        return cast(
+            MessageMediaTranscriptResponse,
+            self._request(
+                "POST",
+                f"/v1/messages/{path_id('message_id', message_id)}/transcription/retry",
+                json=payload,
+                idempotency_key=normalized_idempotency_key,
+                trace_id=trace_id,
+            ),
+        )
+
     def cancel(
         self,
         message_id: str,

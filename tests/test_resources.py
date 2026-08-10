@@ -7,7 +7,7 @@ from typing import Any, cast
 import httpx
 import pytest
 
-from tyxter import Tyxter
+from tyxter import Tyxter, TyxterAPIError
 from tyxter.types import InteractiveMessagePayload, NativePixOrderDetailsMessagePayload
 
 
@@ -162,6 +162,77 @@ def test_messages_transcription_and_typing_use_encoded_paths_and_trace_headers()
     )
     assert seen[2].headers["tyxter-trace-id"] == "trc_typing"
     assert "idempotency-key" not in seen[2].headers
+
+
+def test_messages_retry_transcription_requires_and_trims_idempotency_key() -> None:
+    client, seen = make_client()
+
+    client.messages.retry_transcription(
+        "msg/123",
+        {"language": "pt"},
+        idempotency_key="  idem_retry  ",
+        trace_id="trc_retry",
+    )
+
+    assert_request(
+        seen[0],
+        method="POST",
+        url="https://api.test/v1/messages/msg%2F123/transcription/retry",
+        body={"language": "pt"},
+    )
+    assert seen[0].headers["idempotency-key"] == "idem_retry"
+    assert seen[0].headers["tyxter-trace-id"] == "trc_retry"
+
+
+@pytest.mark.parametrize("idempotency_key", ["", " \t "])
+def test_messages_retry_transcription_rejects_blank_keys_before_network_io(
+    idempotency_key: str,
+) -> None:
+    client, seen = make_client()
+
+    with pytest.raises(ValueError, match="idempotency_key must be a non-blank string"):
+        client.messages.retry_transcription(
+            "msg_123",
+            {"language": "pt"},
+            idempotency_key=idempotency_key,
+        )
+
+    assert seen == []
+
+
+def test_messages_retry_transcription_preserves_retry_after_api_errors() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            429,
+            json={
+                "error": {
+                    "type": "rate_limited",
+                    "code": "transcription_retry_rate_limited",
+                    "message": "Retry later",
+                    "retry_after_ms": 250,
+                }
+            },
+        )
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(TyxterAPIError) as exc_info:
+        client.messages.retry_transcription(
+            "msg_123",
+            {"language": "pt"},
+            idempotency_key="idem_retry",
+        )
+
+    assert exc_info.value.code == "transcription_retry_rate_limited"
+    assert exc_info.value.retry_after_ms == 250
+    assert seen[0].headers["idempotency-key"] == "idem_retry"
 
 
 def test_whatsapp_builders_preserve_structured_recipients_and_native_pix() -> None:

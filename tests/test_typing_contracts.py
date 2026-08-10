@@ -16,6 +16,7 @@ from tyxter.types import (
     InboundMessageMediaConsumed,
     InboundMessageMediaFailed,
     NativePixOrderDetailsMessagePayload,
+    ProviderCredentialSetupSessionCompletedOpenAISttResult,
 )
 
 invalid_payment_settings: NativePixOrderDetailsMessagePayload = {
@@ -71,6 +72,27 @@ invalid_consumed_media: InboundMessageMediaConsumed = {
     "status": "consumed",
     "failure": {"code": "unexpected", "message": "must be rejected"},
 }
+
+invalid_stt_completion: ProviderCredentialSetupSessionCompletedOpenAISttResult = {
+    "object": "provider_credential_setup_session",
+    "request_id": "pcs_123",
+    "project_id": "prj_123",
+    "project_slug": "demo",
+    "environment_id": "env_123",
+    "environment": "production",
+    "setup_url": "https://setup.example.test/pcs_123",
+    "poll_url": "https://api.example.test/v1/provider-credential-setup-sessions/pcs_123",
+    "expires_at": "2026-08-10T12:00:00Z",
+    "completed_at": "2026-08-10T11:00:00Z",
+    "denied_at": None,
+    "created_at": "2026-08-10T10:00:00Z",
+    "updated_at": "2026-08-10T11:00:00Z",
+    "target": "openai.stt",
+    "status": "completed",
+    "completed_provider_connection_id": None,
+    "completed_tts_provider": "openai",
+    "completed_stt_provider": "openai",
+}
 """,
         encoding="utf-8",
     )
@@ -95,3 +117,4 @@ invalid_consumed_media: InboundMessageMediaConsumed = {
     output = result.stdout + result.stderr
     assert "payment_settings" in output
     assert "failure" in output
+    assert "completed_tts_provider" in output

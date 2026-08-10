@@ -4,6 +4,7 @@ import json
 from typing import cast
 
 import httpx
+import pytest
 
 from tyxter import Tyxter
 
@@ -61,6 +62,37 @@ def test_flows_fiscal_and_feedback_cover_public_routes() -> None:
     assert str(seen[7].url).endswith("/fiscal/nfse/nfse%2F1/xml")
     assert seen[8].headers["idempotency-key"] == "idem_feedback"
     assert seen[8].headers["tyxter-trace-id"] == "trc_feedback"
+
+
+def test_feedback_generates_the_required_idempotency_key_when_omitted() -> None:
+    seen: list[httpx.Request] = []
+    client = make_client(seen)
+
+    client.feedback.create({"message": "Unexpected response"})
+
+    assert len(seen) == 1
+    assert seen[0].headers["idempotency-key"]
+
+
+def test_feedback_trims_explicit_idempotency_keys() -> None:
+    seen: list[httpx.Request] = []
+    client = make_client(seen)
+
+    client.feedback.create({"message": "Unexpected response"}, idempotency_key="  idem_feedback  ")
+
+    assert len(seen) == 1
+    assert seen[0].headers["idempotency-key"] == "idem_feedback"
+
+
+@pytest.mark.parametrize("idempotency_key", ["", " \t "])
+def test_feedback_rejects_blank_idempotency_keys_before_network_io(idempotency_key: str) -> None:
+    seen: list[httpx.Request] = []
+    client = make_client(seen)
+
+    with pytest.raises(ValueError, match="idempotency_key must be a non-blank string"):
+        client.feedback.create({"message": "Unexpected response"}, idempotency_key=idempotency_key)
+
+    assert seen == []
 
 
 def test_llm_routes_and_completions_cover_queries_and_headers() -> None:

@@ -23,10 +23,13 @@ ProviderCredentialSetupTarget: TypeAlias = Literal[
     "openai.tts",
     "elevenlabs.tts",
     "xai.tts",
+    "openai.stt",
 ]
 ProviderCredentialSetupSessionStatus: TypeAlias = Literal[
     "pending", "completed", "denied", "expired"
 ]
+ProviderCredentialSetupTtsProvider: TypeAlias = Literal["openai", "elevenlabs", "xai"]
+ProviderCredentialSetupSttProvider: TypeAlias = Literal["openai"]
 
 
 class PaymentReceiverProfile(TypedDict, total=False):
@@ -208,6 +211,93 @@ class ProviderCredentialSetupSessionResponse(TypedDict):
     completed_at: str | None
     denied_at: str | None
     completed_provider_connection_id: str | None
-    completed_tts_provider: Literal["openai", "elevenlabs", "xai"] | None
+    completed_tts_provider: ProviderCredentialSetupTtsProvider | None
+    completed_stt_provider: NotRequired[ProviderCredentialSetupSttProvider | None]
     created_at: str
     updated_at: str
+
+
+class _ProviderCredentialSetupSessionResultBase(TypedDict):
+    object: Literal["provider_credential_setup_session"]
+    request_id: str
+    project_id: str
+    project_slug: str
+    environment_id: str
+    environment: Environment
+    setup_url: str
+    poll_url: str
+    expires_at: str
+    completed_at: str | None
+    denied_at: str | None
+    created_at: str
+    updated_at: str
+
+
+class ProviderCredentialSetupSessionIncompleteResult(_ProviderCredentialSetupSessionResultBase):
+    target: ProviderCredentialSetupTarget
+    status: Literal["pending", "denied", "expired"]
+    completed_provider_connection_id: None
+    completed_tts_provider: None
+    completed_stt_provider: None
+
+
+class ProviderCredentialSetupSessionCompletedConnectionResult(
+    _ProviderCredentialSetupSessionResultBase
+):
+    target: Literal[
+        "meta.whatsapp",
+        "abacate_pay.payments",
+        "iniciador.payments",
+        "iniciador.agentic_payments",
+    ]
+    status: Literal["completed"]
+    completed_provider_connection_id: str
+    completed_tts_provider: None
+    completed_stt_provider: None
+
+
+class _ProviderCredentialSetupSessionCompletedTtsResult(_ProviderCredentialSetupSessionResultBase):
+    status: Literal["completed"]
+    completed_provider_connection_id: None
+    completed_stt_provider: None
+
+
+class ProviderCredentialSetupSessionCompletedOpenAITtsResult(
+    _ProviderCredentialSetupSessionCompletedTtsResult
+):
+    target: Literal["openai.tts"]
+    completed_tts_provider: Literal["openai"]
+
+
+class ProviderCredentialSetupSessionCompletedElevenLabsTtsResult(
+    _ProviderCredentialSetupSessionCompletedTtsResult
+):
+    target: Literal["elevenlabs.tts"]
+    completed_tts_provider: Literal["elevenlabs"]
+
+
+class ProviderCredentialSetupSessionCompletedXaiTtsResult(
+    _ProviderCredentialSetupSessionCompletedTtsResult
+):
+    target: Literal["xai.tts"]
+    completed_tts_provider: Literal["xai"]
+
+
+class ProviderCredentialSetupSessionCompletedOpenAISttResult(
+    _ProviderCredentialSetupSessionResultBase
+):
+    target: Literal["openai.stt"]
+    status: Literal["completed"]
+    completed_provider_connection_id: None
+    completed_tts_provider: None
+    completed_stt_provider: ProviderCredentialSetupSttProvider
+
+
+ProviderCredentialSetupSessionResult: TypeAlias = (
+    ProviderCredentialSetupSessionIncompleteResult
+    | ProviderCredentialSetupSessionCompletedConnectionResult
+    | ProviderCredentialSetupSessionCompletedOpenAITtsResult
+    | ProviderCredentialSetupSessionCompletedElevenLabsTtsResult
+    | ProviderCredentialSetupSessionCompletedXaiTtsResult
+    | ProviderCredentialSetupSessionCompletedOpenAISttResult
+)
