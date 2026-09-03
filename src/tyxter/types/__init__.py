@@ -136,6 +136,7 @@ from .billing import (
     SubscribePlanResponse,
     SubscriptionBillingRail,
     ThroughputTier,
+    TopupPaymentMethodKind,
     TopupResponse,
     UpdateAutoTopupConfigRequest,
 )
@@ -428,6 +429,8 @@ from .webhook_events import (
 from .webhooks import (
     CreateWebhookEndpointRequest,
     CreateWebhookEndpointResponse,
+    CreditToppedUpWebhookData,
+    CreditToppedUpWebhookEnvelope,
     DeleteWebhookEndpointResponse,
     ListWebhookEndpointsResponse,
     MessageMediaTranscribedWebhookData,
@@ -557,6 +560,8 @@ __all__ = [
     "CreateWebhookEndpointRequest",
     "CreateWebhookEndpointResponse",
     "CreditBalanceResponse",
+    "CreditToppedUpWebhookData",
+    "CreditToppedUpWebhookEnvelope",
     "CurrentPlanResponse",
     "DeleteMediaAssetResponse",
     "DataRetentionPolicyResponse",
@@ -830,6 +835,7 @@ __all__ = [
     "SubscribePlanResponse",
     "SubscriptionBillingRail",
     "ThroughputTier",
+    "TopupPaymentMethodKind",
     "TopupResponse",
     "TypingIndicatorResponse",
     "DuplicateTemplateRequest",

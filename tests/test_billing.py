@@ -77,6 +77,52 @@ def test_billing_covers_manifest_routes_and_headers() -> None:
     } == expected_idempotency
 
 
+def test_purchase_package_preserves_promotion_response_without_promotion_request() -> None:
+    seen: list[httpx.Request] = []
+    promotion_response = {
+        "id": "topup_promotion_123",
+        "object": "credit_topup",
+        "kind": "cash",
+        "status": "succeeded",
+        "amount_brl": "25.00",
+        "payment_method": "promotion",
+        "package_code": None,
+        "quota_messages": None,
+        "quota_remaining": None,
+        "stripe_payment_intent_id": None,
+        "stripe_client_secret": None,
+        "provider": "promotion",
+        "abacate_charge_id": None,
+        "pix_copy_paste": None,
+        "pix_qr_code_base64": None,
+        "pix_expires_at": None,
+        "created_at": "2026-09-01T10:00:00Z",
+        "completed_at": "2026-09-01T10:00:00Z",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=promotion_response)
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    topup = client.billing.purchase_package(
+        {"package_code": "pkg_10k", "payment_method": "card"},
+        idempotency_key="idem_promotion_response",
+    )
+
+    assert topup == promotion_response
+    assert len(seen) == 1
+    assert seen[0].method == "POST"
+    assert str(seen[0].url) == "https://api.test/v1/billing/packages/purchase"
+    assert seen[0].headers["idempotency-key"] == "idem_promotion_response"
+    assert body(seen[0]) == {"package_code": "pkg_10k", "payment_method": "card"}
+
+
 def test_phone_renewals_use_exact_query_and_encoded_cycle_paths() -> None:
     seen: list[httpx.Request] = []
     renewal = {

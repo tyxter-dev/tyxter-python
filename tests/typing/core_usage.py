@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from typing_extensions import assert_type
 
 from tyxter import Tyxter
@@ -9,6 +11,8 @@ from tyxter.types import (
     CreateMessageRequest,
     CreateProjectRequest,
     CreateTemplateRequest,
+    CreditToppedUpWebhookData,
+    CreditToppedUpWebhookEnvelope,
     DuplicateTemplateRequest,
     ErrorDiscoveryPointer,
     FlowResponse,
@@ -63,6 +67,7 @@ from tyxter.types import (
     ProviderCredentialSetupSessionResult,
     ProviderCredentialSetupSttProvider,
     PublicFeedbackReportResponse,
+    PurchaseBillingPackageRequest,
     RequestMessageMediaTranscription,
     SendMediaMessageInput,
     TemplateGenerationRequest,
@@ -70,6 +75,8 @@ from tyxter.types import (
     TemplateParameterFormat,
     TemplateResponse,
     TestWebhookEndpointResponse,
+    TopupPaymentMethodKind,
+    TopupResponse,
     TypingIndicatorResponse,
     TyxterErrorBody,
     UpdateTemplateRequest,
@@ -390,6 +397,75 @@ def a6_provider_availability_usage(
         )
     if "provider_missing_since" in flow:
         assert_type(flow["provider_missing_since"], str | None)
+
+
+def a7_credit_provider_access(event: CreditToppedUpWebhookData) -> None:
+    if "provider" in event:
+        assert_type(event["provider"], Literal["stripe", "abacate_pay", "manual", "promotion"])
+
+
+def a7_promotional_credit_usage(client: Tyxter) -> None:
+    manual_payment_method: TopupPaymentMethodKind = "manual"
+    promotion_payment_method: TopupPaymentMethodKind = "promotion"
+    purchase_request: PurchaseBillingPackageRequest = {
+        "package_code": "pkg_10k",
+        "payment_method": "card",
+    }
+    promotion_topup = TopupResponse(
+        id="topup_promotion_123",
+        object="credit_topup",
+        kind="cash",
+        status="succeeded",
+        amount_brl="25.00",
+        payment_method=promotion_payment_method,
+        package_code=None,
+        quota_messages=None,
+        quota_remaining=None,
+        stripe_payment_intent_id=None,
+        stripe_client_secret=None,
+        provider="promotion",
+        abacate_charge_id=None,
+        pix_copy_paste=None,
+        pix_qr_code_base64=None,
+        pix_expires_at=None,
+        created_at="2026-09-01T10:00:00Z",
+        completed_at="2026-09-01T10:00:00Z",
+    )
+    historical_data = CreditToppedUpWebhookData(
+        topup_id="topup_manual_123",
+        amount_brl="25.00",
+        payment_method=manual_payment_method,
+        balance_brl="125.00",
+    )
+    promotion_data = CreditToppedUpWebhookData(
+        topup_id="topup_promotion_123",
+        amount_brl="25.00",
+        payment_method=promotion_payment_method,
+        provider="promotion",
+        balance_brl="125.00",
+    )
+    historical_event = CreditToppedUpWebhookEnvelope(
+        id="evt_credit_historical",
+        type="credit.topped_up",
+        created_at="2026-09-01T10:00:00Z",
+        environment="sandbox",
+        trace_id="trc_credit_historical",
+        data=historical_data,
+    )
+    promotion_event = CreditToppedUpWebhookEnvelope(
+        id="evt_credit_promotion",
+        type="credit.topped_up",
+        created_at="2026-09-01T10:00:00Z",
+        environment="production",
+        trace_id="trc_credit_promotion",
+        data=promotion_data,
+    )
+    assert_type(client.billing.purchase_package(purchase_request), TopupResponse)
+    assert_type(promotion_topup["payment_method"], TopupPaymentMethodKind)
+    assert_type(promotion_event["data"]["payment_method"], TopupPaymentMethodKind)
+    assert_type(historical_event["data"]["balance_brl"], str)
+    a7_credit_provider_access(historical_event["data"])
+    a7_credit_provider_access(promotion_event["data"])
 
 
 def a2_message_media_contract_usage(client: Tyxter) -> None:

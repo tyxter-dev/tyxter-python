@@ -136,19 +136,22 @@ class PurchaseBillingPackageRequest(TypedDict):
     payment_method: Literal["pix", "card"]
 
 
+TopupPaymentMethodKind: TypeAlias = Literal["pix", "card", "x402", "manual", "promotion"]
+
+
 class TopupResponse(TypedDict):
     id: str
     object: Literal["credit_topup"]
     kind: Literal["cash", "package", "x402"]
     status: BillingPackageStatus
     amount_brl: str
-    payment_method: Literal["pix", "card", "x402"]
+    payment_method: TopupPaymentMethodKind
     package_code: str | None
     quota_messages: int | None
     quota_remaining: int | None
     stripe_payment_intent_id: str | None
     stripe_client_secret: str | None
-    provider: NotRequired[Literal["stripe", "abacate_pay"]]
+    provider: NotRequired[Literal["stripe", "abacate_pay", "manual", "promotion"]]
     abacate_charge_id: NotRequired[str | None]
     pix_copy_paste: NotRequired[str | None]
     pix_qr_code_base64: NotRequired[str | None]

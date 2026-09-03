@@ -395,6 +395,99 @@ wrong_warning_envelope: ProviderConnectionPolicyWarningWebhookEnvelope = {
     assert output.count("error:") >= 5
 
 
+def test_promotional_credit_invalid_shapes_are_rejected(tmp_path: Path) -> None:
+    fixture = tmp_path / "invalid_a7_promotional_credit_types.py"
+    fixture.write_text(
+        """\\
+from tyxter.types import (
+    CreditToppedUpWebhookData,
+    CreditToppedUpWebhookEnvelope,
+    TopupPaymentMethodKind,
+    TopupResponse,
+)
+
+invalid_payment_method: TopupPaymentMethodKind = "cash_settlement"
+
+unsupported_provider: CreditToppedUpWebhookData = {
+    "topup_id": "topup_123",
+    "amount_brl": "25.00",
+    "payment_method": "promotion",
+    "provider": "paypal",
+    "balance_brl": "125.00",
+}
+
+none_provider: TopupResponse = {
+    "id": "topup_123",
+    "object": "credit_topup",
+    "kind": "cash",
+    "status": "succeeded",
+    "amount_brl": "25.00",
+    "payment_method": "promotion",
+    "package_code": None,
+    "quota_messages": None,
+    "quota_remaining": None,
+    "stripe_payment_intent_id": None,
+    "stripe_client_secret": None,
+    "provider": None,
+    "created_at": "2026-09-01T10:00:00Z",
+    "completed_at": "2026-09-01T10:00:00Z",
+}
+
+missing_event_data: CreditToppedUpWebhookEnvelope = {
+    "id": "evt_credit_123",
+    "type": "credit.topped_up",
+    "created_at": "2026-09-01T10:00:00Z",
+    "environment": "sandbox",
+    "trace_id": "trc_credit_123",
+}
+
+private_campaign_id: TopupResponse = {
+    "id": "topup_123",
+    "object": "credit_topup",
+    "kind": "cash",
+    "status": "succeeded",
+    "amount_brl": "25.00",
+    "payment_method": "promotion",
+    "package_code": None,
+    "quota_messages": None,
+    "quota_remaining": None,
+    "stripe_payment_intent_id": None,
+    "stripe_client_secret": None,
+    "provider": "promotion",
+    "created_at": "2026-09-01T10:00:00Z",
+    "completed_at": "2026-09-01T10:00:00Z",
+    "promotion_campaign_id": "private_campaign_123",
+}
+""",
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    source_path = str(PACKAGE_ROOT / "src")
+    environment["MYPYPATH"] = (
+        source_path
+        if not environment.get("MYPYPATH")
+        else os.pathsep.join((source_path, environment["MYPYPATH"]))
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "mypy", "--strict", str(fixture)],
+        cwd=PACKAGE_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert "cash_settlement" in output
+    assert "paypal" in output
+    assert "None" in output
+    assert "data" in output
+    assert "promotion_campaign_id" in output
+    assert output.count("error:") >= 5
+
+
 def test_transcription_webhook_cross_variant_fields_are_rejected(tmp_path: Path) -> None:
     fixture = tmp_path / "invalid_a3_transcription_webhook_types.py"
     fixture.write_text(

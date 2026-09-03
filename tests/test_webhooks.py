@@ -46,6 +46,19 @@ DISABLE_SCHEDULED_WEBHOOK_BODY = (
     '"provider":"meta","display_name":"Tyxter Support",'
     '"waba_ban_date":null,"observed_at":"2026-09-01T10:00:00Z"}}'
 )
+CREDIT_TOPPED_UP_HISTORICAL_WEBHOOK_BODY = (
+    '{"id":"evt_credit_historical","type":"credit.topped_up",'
+    '"created_at":"2026-09-01T10:00:00Z","environment":"sandbox",'
+    '"trace_id":"trc_credit_historical","data":{"topup_id":"topup_manual_123",'
+    '"amount_brl":"25.00","payment_method":"manual","balance_brl":"125.00"}}'
+)
+CREDIT_TOPPED_UP_PROMOTION_WEBHOOK_BODY = (
+    '{"id":"evt_credit_promotion","type":"credit.topped_up",'
+    '"created_at":"2026-09-01T10:00:00Z","environment":"production",'
+    '"trace_id":"trc_credit_promotion","data":{"topup_id":"topup_promotion_123",'
+    '"amount_brl":"25.00","payment_method":"promotion","provider":"promotion",'
+    '"balance_brl":"125.00"}}'
+)
 
 
 def test_sign_webhook_matches_platform_crypto_vector() -> None:
@@ -146,6 +159,45 @@ def test_provider_connection_webhook_json_fixtures_verify_as_opaque_raw_bodies(
     parsed = json.loads(raw_body)
     assert parsed["type"] == event_type
     assert parsed["data"]["provider"] == "meta"
+    assert verifier.verify(
+        raw_body=raw_body,
+        headers={
+            "tyxter-webhook-timestamp": TIMESTAMP,
+            "tyxter-webhook-signature": signature,
+        },
+        now=int(TIMESTAMP),
+    )
+    assert not verifier.verify(
+        raw_body=f"{raw_body} ",
+        headers={
+            "tyxter-webhook-timestamp": TIMESTAMP,
+            "tyxter-webhook-signature": signature,
+        },
+        now=int(TIMESTAMP),
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw_body", "expected_provider"),
+    [
+        (CREDIT_TOPPED_UP_HISTORICAL_WEBHOOK_BODY, None),
+        (CREDIT_TOPPED_UP_PROMOTION_WEBHOOK_BODY, "promotion"),
+    ],
+)
+def test_credit_topped_up_webhook_json_fixtures_preserve_optional_provider(
+    raw_body: str,
+    expected_provider: str | None,
+) -> None:
+    signature = sign_webhook(SECRET, TIMESTAMP, raw_body)
+    verifier = WebhookSignatureVerifier(SECRET)
+
+    parsed = json.loads(raw_body)
+    assert parsed["type"] == "credit.topped_up"
+    if expected_provider is None:
+        assert "provider" not in parsed["data"]
+    else:
+        assert parsed["data"]["provider"] == expected_provider
+        assert parsed["data"]["payment_method"] == "promotion"
     assert verifier.verify(
         raw_body=raw_body,
         headers={

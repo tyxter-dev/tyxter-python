@@ -348,6 +348,14 @@ observed timestamp. Policy-warning strings remain open provider values. A flow's
 checked, while a timestamp is the first reconciliation failure. Verify provider warning and
 scheduled-disable webhook envelopes with the existing raw-body signature verifier.
 
+## Promotional credit reads and events
+
+Top-up responses and `credit.topped_up` webhook events can report both `payment_method` and
+`provider` as `"promotion"` for a separately granted campaign bonus. Historical webhook events may
+omit `provider`, which the SDK never infers. There is no campaign, redemption, or promotion-creation
+operation in this SDK. A response `kind` of `"cash"` can coexist with the promotional discriminants;
+it does not establish cash settlement or a provider charge.
+
 ## Pagination
 
 List methods return cursor pages. Continue with `next_cursor` only when

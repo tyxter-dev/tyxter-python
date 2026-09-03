@@ -4,6 +4,7 @@ from typing import Literal, TypeAlias
 
 from typing_extensions import NotRequired, TypedDict
 
+from .billing import TopupPaymentMethodKind
 from .common import Environment
 
 WebhookEndpointStatus: TypeAlias = Literal["active", "disabled"]
@@ -115,6 +116,19 @@ class _WebhookEventEnvelope(TypedDict):
     occurred_at: NotRequired[str]
     environment: Environment
     trace_id: str
+
+
+class CreditToppedUpWebhookData(TypedDict):
+    topup_id: str
+    amount_brl: str
+    payment_method: TopupPaymentMethodKind
+    provider: NotRequired[Literal["stripe", "abacate_pay", "manual", "promotion"]]
+    balance_brl: str
+
+
+class CreditToppedUpWebhookEnvelope(_WebhookEventEnvelope):
+    type: Literal["credit.topped_up"]
+    data: CreditToppedUpWebhookData
 
 
 class MessageMediaTranscribedWebhookEnvelope(_WebhookEventEnvelope):
