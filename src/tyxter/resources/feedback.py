@@ -3,12 +3,36 @@ from __future__ import annotations
 from typing import cast
 from uuid import uuid4
 
-from tyxter.types import CreateFeedbackRequest, FeedbackReceiptResponse
+from tyxter.types import (
+    CreateFeedbackRequest,
+    FeedbackReceiptResponse,
+    ListPublicFeedbackReportsResponse,
+    PublicFeedbackReportResponse,
+)
 
-from ._base import Resource
+from ._base import Resource, path_id
 
 
 class FeedbackResource(Resource):
+    def list(
+        self,
+        *,
+        after: str | None = None,
+        limit: int | None = None,
+    ) -> ListPublicFeedbackReportsResponse:
+        return cast(
+            ListPublicFeedbackReportsResponse,
+            self._request("GET", "/v1/feedback", params={"after": after, "limit": limit}),
+        )
+
+    def get(self, feedback_report_id: str) -> PublicFeedbackReportResponse:
+        return cast(
+            PublicFeedbackReportResponse,
+            self._request(
+                "GET", f"/v1/feedback/{path_id('feedback_report_id', feedback_report_id)}"
+            ),
+        )
+
     def create(
         self,
         payload: CreateFeedbackRequest,

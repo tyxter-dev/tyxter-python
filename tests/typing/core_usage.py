@@ -4,12 +4,18 @@ from typing_extensions import assert_type
 
 from tyxter import Tyxter
 from tyxter.types import (
+    CreateApiKeyRequest,
+    CreateApiKeyResponse,
     CreateMessageRequest,
+    CreateProjectRequest,
     InboundMessageMediaDescriptor,
     InboundMessageMediaFailed,
     InboundMessageMediaFailure,
     ListMediaAssetsResponse,
     ListMessagesResponse,
+    ListPhoneRenewalsResponse,
+    ListProjectsResponse,
+    ListPublicFeedbackReportsResponse,
     MediaAssetDownloadResponse,
     MessageBatchPacingResponse,
     MessageBatchResponse,
@@ -19,12 +25,16 @@ from tyxter.types import (
     MessageSummaryResponse,
     NativePixOrderDetailsMessagePayload,
     PhoneNumberResponse,
+    PhoneRenewalResponse,
+    ProjectResponse,
     ProviderConnectionResponse,
     ProviderCredentialSetupSessionCompletedOpenAISttResult,
     ProviderCredentialSetupSessionResponse,
     ProviderCredentialSetupSessionResult,
     ProviderCredentialSetupSttProvider,
+    PublicFeedbackReportResponse,
     RequestMessageMediaTranscription,
+    TestWebhookEndpointResponse,
     TypingIndicatorResponse,
 )
 
@@ -104,6 +114,36 @@ def core_usage(client: Tyxter) -> None:
             "interactive": order_details,
         }
     )
+
+
+def a1_resource_usage(client: Tyxter) -> None:
+    project: CreateProjectRequest = {"name": "Demo", "slug": "demo"}
+    assert_type(client.projects.create(project), ProjectResponse)
+    assert_type(client.projects.list(limit=10, starting_after="prj_1"), ListProjectsResponse)
+    assert_type(client.projects.retrieve("prj_123"), ProjectResponse)
+
+    assert_type(
+        client.feedback.list(after="fbr_1", limit=10),
+        ListPublicFeedbackReportsResponse,
+    )
+    assert_type(client.feedback.get("fbr_123"), PublicFeedbackReportResponse)
+    assert_type(
+        client.webhook_endpoints.test("whe_123", idempotency_key="idem_webhook_test"),
+        TestWebhookEndpointResponse,
+    )
+    assert_type(
+        client.billing.list_phone_renewals(status="funding_required"),
+        ListPhoneRenewalsResponse,
+    )
+    assert_type(client.billing.retrieve_phone_renewal("phr_123"), PhoneRenewalResponse)
+
+    api_key: CreateApiKeyRequest = {
+        "name": "Project agent",
+        "environment": "sandbox",
+        "project_id": "prj_123",
+        "scopes": ["messages:write"],
+    }
+    assert_type(client.api_keys.create(api_key), CreateApiKeyResponse)
 
 
 def a1_response_shapes(

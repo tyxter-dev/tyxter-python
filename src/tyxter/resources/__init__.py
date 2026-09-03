@@ -23,6 +23,7 @@ from .messages import MessagesResource
 from .meta_signup_sessions import MetaSignupSessionsResource
 from .payments import PaymentsResource
 from .phone_numbers import PhoneNumbersResource
+from .projects import ProjectsResource
 from .provider_connections import (
     ProviderConnectionsResource,
     ProviderCredentialSetupSessionsResource,
@@ -59,6 +60,7 @@ __all__ = [
     "MetaSignupSessionsResource",
     "PaymentsResource",
     "PhoneNumbersResource",
+    "ProjectsResource",
     "ProviderConnectionsResource",
     "ProviderCredentialSetupSessionsResource",
     "RateCardsResource",

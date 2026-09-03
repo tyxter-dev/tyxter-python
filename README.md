@@ -185,7 +185,7 @@ python examples/sandbox_send_and_verify.py
 
 The client exposes snake-case resource namespaces:
 
-- `account`, `api_keys`, `ai_agents`, `agentic_payments`, and `audiences`
+- `account`, `api_keys`, `ai_agents`, `agentic_payments`, `audiences`, and `projects`
 - `automations`, `automation_runs`, and `automation_webhooks`
 - `batches`, `billing`, `contacts`, `data_retention`, `feedback`, `fiscal`,
   and `flows`
@@ -349,7 +349,7 @@ that hits a route the manifest does not define fails, and a query parameter or
 `Idempotency-Key` mode (`unsupported`, `supported`, or `required`) that drifts
 from the contract fails.
 
-The current source is a draft candidate covering **171 of 173** manifest rows.
+The current source is a draft candidate covering **179 of 181** manifest rows.
 The two reviewed shared exemptions are `PUT` and
 `GET /v1/media/blobs/:token`: each uses its signed capability token as the sole
 authority and is intentionally not a bearer-authenticated SDK method. This count

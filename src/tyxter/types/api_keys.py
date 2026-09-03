@@ -13,6 +13,7 @@ AgentApiKeyDeviceGrantType: TypeAlias = Literal["urn:ietf:params:oauth:grant-typ
 class CreateApiKeyRequest(TypedDict):
     name: str
     environment: Environment
+    project_id: NotRequired[str]
     scopes: list[str]
     expires_at: NotRequired[str]
 

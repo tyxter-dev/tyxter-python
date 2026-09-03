@@ -95,6 +95,48 @@ def test_feedback_rejects_blank_idempotency_keys_before_network_io(idempotency_k
     assert seen == []
 
 
+def test_feedback_lists_and_retrieves_tenant_scoped_public_reports() -> None:
+    seen: list[httpx.Request] = []
+    report = {
+        "id": "fbr_1",
+        "object": "feedback_report",
+        "status": "resolved",
+        "message_excerpt": "Unexpected response",
+        "created_at": "2026-09-03T00:00:00Z",
+        "latest_resolution": {
+            "disposition": "resolved",
+            "public_summary": "Fixed",
+            "published_at": "2026-09-03T01:00:00Z",
+        },
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/v1/feedback":
+            return httpx.Response(
+                200,
+                json={"object": "list", "data": [report], "has_more": False, "next_cursor": None},
+            )
+        return httpx.Response(200, json=report)
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    listed = client.feedback.list(after="fbr_0", limit=5)
+    retrieved = client.feedback.get("fbr/1")
+
+    assert listed["data"][0]["latest_resolution"] is not None
+    assert listed["data"][0]["latest_resolution"]["disposition"] == "resolved"
+    assert retrieved["status"] == "resolved"
+    assert str(seen[0].url) == "https://api.test/v1/feedback?after=fbr_0&limit=5"
+    assert str(seen[1].url) == "https://api.test/v1/feedback/fbr%2F1"
+    assert all("idempotency-key" not in request.headers for request in seen)
+    assert all("tyxter-trace-id" not in request.headers for request in seen)
+
+
 def test_llm_routes_and_completions_cover_queries_and_headers() -> None:
     seen: list[httpx.Request] = []
     client = make_client(seen)

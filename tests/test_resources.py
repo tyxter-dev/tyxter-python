@@ -442,6 +442,37 @@ def test_webhook_endpoints_resource_paths_and_payloads() -> None:
     )
 
 
+def test_webhook_endpoint_test_is_an_empty_body_supported_idempotent_post() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "object": "webhook_test",
+                "webhook_event_id": "wev_1",
+                "webhook_endpoint_id": "whe_1",
+                "status": "pending",
+            },
+        )
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    receipt = client.webhook_endpoints.test("whe/1", idempotency_key="idem_webhook_test")
+
+    assert receipt["status"] == "pending"
+    assert str(seen[0].url) == "https://api.test/v1/webhook-endpoints/whe%2F1/test"
+    assert not seen[0].content
+    assert "content-type" not in seen[0].headers
+    assert seen[0].headers["idempotency-key"] == "idem_webhook_test"
+    assert "tyxter-trace-id" not in seen[0].headers
+
+
 @pytest.mark.parametrize(
     ("call", "message"),
     [
@@ -452,6 +483,10 @@ def test_webhook_endpoints_resource_paths_and_payloads() -> None:
             lambda client: client.webhook_endpoints.get(""),
             "webhook_endpoint_id is required",
         ),
+        (lambda client: client.webhook_endpoints.test(""), "webhook_endpoint_id is required"),
+        (lambda client: client.feedback.get(""), "feedback_report_id is required"),
+        (lambda client: client.projects.retrieve(""), "project_id is required"),
+        (lambda client: client.billing.retrieve_phone_renewal(""), "cycle_id is required"),
     ],
 )
 def test_resource_ids_are_required(call: Callable[[Tyxter], object], message: str) -> None:

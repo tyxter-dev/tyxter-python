@@ -28,7 +28,10 @@
   "ListMediaAssetsRequest": ["kind", "lifecycle", "limit", "source", "starting_after", "status"],
   "ListMessagesQuery": ["batch_id", "direction", "include", "limit", "starting_after", "status"],
   "ListPaymentsQuery": ["limit", "starting_after", "status"],
+  "ListProjectsQuery": ["limit", "starting_after"],
   "ListPhoneNumbersQuery": ["limit", "starting_after", "status"],
+  "ListPhoneRenewalsQuery": ["limit", "starting_after", "status"],
+  "ListPublicFeedbackReportsQuery": ["after", "limit"],
   "ListRateCardsQuery": ["currency", "limit", "starting_after"],
   "ListUsageRecordsQuery": [
     "environment",

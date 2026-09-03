@@ -7,6 +7,14 @@ from typing_extensions import NotRequired, TypedDict
 from .common import Environment
 
 WebhookEndpointStatus: TypeAlias = Literal["active", "disabled"]
+WebhookEndpointDisabledDetailFailureClass: TypeAlias = Literal[
+    "auth_rejected", "server_error", "unreachable", "timeout"
+]
+
+
+class WebhookEndpointDisabledDetail(TypedDict):
+    last_status_code: int | None
+    failure_class: WebhookEndpointDisabledDetailFailureClass
 
 
 class CreateWebhookEndpointRequest(TypedDict):
@@ -30,6 +38,7 @@ class WebhookEndpointResponse(TypedDict):
     subscribed_events: list[str]
     status: WebhookEndpointStatus
     disabled_reason: str | None
+    disabled_detail: WebhookEndpointDisabledDetail | None
     last_failure_at: str | None
     last_success_at: str | None
     environment: Environment
@@ -50,6 +59,13 @@ class ListWebhookEndpointsResponse(TypedDict):
     data: list[WebhookEndpointResponse]
     has_more: bool
     next_cursor: str | None
+
+
+class TestWebhookEndpointResponse(TypedDict):
+    object: Literal["webhook_test"]
+    webhook_event_id: str
+    webhook_endpoint_id: str
+    status: Literal["pending"]
 
 
 class DeleteWebhookEndpointResponse(TypedDict):

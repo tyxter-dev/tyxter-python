@@ -7,6 +7,7 @@ from tyxter.types import (
     CreateWebhookEndpointResponse,
     ListWebhookEndpointsResponse,
     RotateWebhookSigningSecretResponse,
+    TestWebhookEndpointResponse,
     UpdateWebhookEndpointRequest,
     WebhookEndpointResponse,
 )
@@ -102,6 +103,21 @@ class WebhookEndpointsResource(Resource):
                 "POST",
                 "/v1/webhook-endpoints/"
                 f"{path_id('webhook_endpoint_id', webhook_endpoint_id)}/rotate-signing-secret",
+                idempotency_key=idempotency_key,
+            ),
+        )
+
+    def test(
+        self,
+        webhook_endpoint_id: str,
+        *,
+        idempotency_key: str | None = None,
+    ) -> TestWebhookEndpointResponse:
+        return cast(
+            TestWebhookEndpointResponse,
+            self._request(
+                "POST",
+                f"/v1/webhook-endpoints/{path_id('webhook_endpoint_id', webhook_endpoint_id)}/test",
                 idempotency_key=idempotency_key,
             ),
         )

@@ -18,6 +18,11 @@ an artifact to PyPI.
 
 ### Added
 
+- Canonical 0.8.0 project management, public feedback report reads, webhook endpoint test
+  receipts, and optional project-scoped API-key creation.
+- Post-tag canonical source's read-only phone-renewal list/retrieve surface. These methods remain
+  **Unreleased**: they come from source commit `ed49c514b74a59de3b238d4ebc157f20482b6171`, not
+  the published `sdk-js-v0.8.0` tag.
 - `messages.retry_transcription()` for bounded manual recovery of a failed
   inbound-audio transcription. It requires a caller-supplied nonblank
   `idempotency_key`; same-key retries replay the accepted receipt rather than
