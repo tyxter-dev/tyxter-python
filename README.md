@@ -336,6 +336,18 @@ string; `observed_at` shares the freshness fact in `meta_health_synced_at`. Neit
 nor a null pending or durable review block implies approval. SDK list and retrieve reads return
 these API values; they do not trigger a live Meta fetch.
 
+## Provider availability observations
+
+Provider connection availability fields are advisory evidence, not SDK send enforcement. An absent
+or null `send_capability` means there is no trusted observation: it is unknown and establishes
+neither availability nor unavailability. A `blocked` value does not change the connection status or
+block a client send. `send_block_codes`, `waba_send_capabilities`, and
+`waba_ban_date` provide diagnostic Meta observations, including WABA-specific evidence and its
+observed timestamp. Policy-warning strings remain open provider values. A flow's nullable
+`provider_missing_since` is an observation: null means the provider resolves or has never been
+checked, while a timestamp is the first reconciliation failure. Verify provider warning and
+scheduled-disable webhook envelopes with the existing raw-body signature verifier.
+
 ## Pagination
 
 List methods return cursor pages. Continue with `next_cursor` only when

@@ -150,3 +150,29 @@ MessageMediaTranscriptionWebhookData: TypeAlias = (
 MessageMediaTranscriptionWebhookEnvelope: TypeAlias = (
     MessageMediaTranscribedWebhookEnvelope | MessageMediaTranscriptionFailedWebhookEnvelope
 )
+
+
+class ProviderConnectionPolicyWarningWebhookData(TypedDict):
+    provider_connection_id: str
+    provider: Literal["meta"]
+    display_name: str
+    violation_type: str | None
+    observed_at: str
+
+
+class ProviderConnectionPolicyWarningWebhookEnvelope(_WebhookEventEnvelope):
+    type: Literal["provider_connection.policy_warning"]
+    data: ProviderConnectionPolicyWarningWebhookData
+
+
+class ProviderConnectionDisableScheduledWebhookData(TypedDict):
+    provider_connection_id: str
+    provider: Literal["meta"]
+    display_name: str
+    waba_ban_date: str | None
+    observed_at: str
+
+
+class ProviderConnectionDisableScheduledWebhookEnvelope(_WebhookEventEnvelope):
+    type: Literal["provider_connection.disable_scheduled"]
+    data: ProviderConnectionDisableScheduledWebhookData

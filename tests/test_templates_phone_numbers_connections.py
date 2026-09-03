@@ -8,6 +8,7 @@ import httpx
 from tyxter import Tyxter
 from tyxter.types import (
     PhoneNumberResponse,
+    ProviderConnectionResponse,
     ProviderCredentialSetupSessionResponse,
     TemplateResponse,
 )
@@ -110,6 +111,38 @@ def phone_response(**overrides: object) -> dict[str, object]:
         "activated_at": "2026-08-26T12:05:00Z",
         "released_at": None,
         "recent_messages": [],
+        **overrides,
+    }
+
+
+def provider_connection_response(**overrides: object) -> dict[str, object]:
+    return {
+        "id": "pc_123",
+        "object": "provider_connection",
+        "provider": "meta",
+        "channel": "whatsapp",
+        "status": "connected",
+        "display_name": "Tyxter Support",
+        "environment": "sandbox",
+        "waba_id": "waba_123",
+        "phone_number_id": "meta_phone_123",
+        "ig_business_account_id": None,
+        "page_id": None,
+        "provider_account_id": "account_123",
+        "payment_receiver": None,
+        "payment_capabilities": None,
+        "agentic_capabilities": None,
+        "default_participant_id": None,
+        "agent_id": None,
+        "agentic_api_base_url": None,
+        "webhook_secret_configured": True,
+        "token_source": "manual",
+        "token_expires_at": None,
+        "token_refreshed_at": None,
+        "token_rotated_at": None,
+        "created_at": "2026-09-01T10:00:00Z",
+        "updated_at": "2026-09-01T10:00:00Z",
+        "disconnected_at": None,
         **overrides,
     }
 
@@ -534,6 +567,127 @@ def test_provider_connections_and_credential_setup_match_header_capabilities() -
         "https://api.test/v1/provider-connections/pc%2F2/meta/complete-registration"
     )
     assert seen[10].headers["idempotency-key"] == "idem_complete"
+
+
+def test_provider_connection_availability_reads_preserve_advisory_observations() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/v1/provider-connections":
+            return httpx.Response(
+                200,
+                json={
+                    "object": "list",
+                    "data": [
+                        provider_connection_response(
+                            last_policy_warning_type="META_FUTURE_WARNING",
+                            last_policy_warning_at="2026-09-01T10:05:00Z",
+                            send_capability="blocked",
+                            send_block_codes=[141006, 141011],
+                            send_capability_observed_at="2026-09-01T10:06:00Z",
+                            waba_send_capabilities=[
+                                {
+                                    "waba_id": "waba_123",
+                                    "send_capability": "blocked",
+                                    "send_block_codes": [141006, 141011],
+                                    "observed_at": "2026-09-01T10:06:00Z",
+                                }
+                            ],
+                            waba_ban_date=None,
+                        )
+                    ],
+                    "has_more": False,
+                    "next_cursor": None,
+                },
+            )
+        return httpx.Response(
+            200,
+            json=provider_connection_response(
+                last_policy_warning_type=None,
+                last_policy_warning_at=None,
+                send_capability="available",
+                send_block_codes=[],
+                send_capability_observed_at="2026-09-01T11:06:00Z",
+                waba_send_capabilities=[
+                    {
+                        "waba_id": "waba_123",
+                        "send_capability": "available",
+                        "send_block_codes": [],
+                        "observed_at": "2026-09-01T11:06:00Z",
+                    }
+                ],
+                waba_ban_date="2026-09-10",
+            ),
+        )
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    blocked = client.provider_connections.list()
+    available = client.provider_connections.retrieve("pc/123")
+
+    blocked_connection = blocked["data"][0]
+    assert blocked_connection["last_policy_warning_type"] == "META_FUTURE_WARNING"
+    assert blocked_connection["last_policy_warning_at"] == "2026-09-01T10:05:00Z"
+    assert blocked_connection["send_capability"] == "blocked"
+    assert blocked_connection["send_block_codes"] == [141006, 141011]
+    assert blocked_connection["send_capability_observed_at"] == "2026-09-01T10:06:00Z"
+    assert blocked_connection["waba_send_capabilities"] == [
+        {
+            "waba_id": "waba_123",
+            "send_capability": "blocked",
+            "send_block_codes": [141006, 141011],
+            "observed_at": "2026-09-01T10:06:00Z",
+        }
+    ]
+    assert blocked_connection["waba_ban_date"] is None
+    assert available["last_policy_warning_type"] is None
+    assert available["last_policy_warning_at"] is None
+    assert available["send_capability"] == "available"
+    assert available["send_block_codes"] == []
+    assert available["send_capability_observed_at"] == "2026-09-01T11:06:00Z"
+    assert available["waba_ban_date"] == "2026-09-10"
+    assert [request.method for request in seen] == ["GET", "GET"]
+    assert str(seen[0].url) == "https://api.test/v1/provider-connections"
+    assert str(seen[1].url) == "https://api.test/v1/provider-connections/pc%2F123"
+
+
+def test_provider_connection_response_remains_callable_without_availability_fields() -> None:
+    legacy_response = ProviderConnectionResponse(
+        id="pc_123",
+        object="provider_connection",
+        provider="meta",
+        channel="whatsapp",
+        status="connected",
+        display_name="Tyxter Support",
+        environment="sandbox",
+        waba_id="waba_123",
+        phone_number_id="meta_phone_123",
+        ig_business_account_id=None,
+        page_id=None,
+        provider_account_id="account_123",
+        payment_receiver=None,
+        payment_capabilities=None,
+        agentic_capabilities=None,
+        default_participant_id=None,
+        agent_id=None,
+        agentic_api_base_url=None,
+        webhook_secret_configured=True,
+        token_source="manual",
+        token_expires_at=None,
+        token_refreshed_at=None,
+        token_rotated_at=None,
+        created_at="2026-09-01T10:00:00Z",
+        updated_at="2026-09-01T10:00:00Z",
+        disconnected_at=None,
+    )
+
+    assert "send_capability" not in legacy_response
+    assert "waba_send_capabilities" not in legacy_response
 
 
 def test_provider_credential_setup_stt_and_legacy_response_constructor_are_supported() -> None:

@@ -323,6 +323,78 @@ invalid_review_nullable_values: PhoneNumberNameReviewResponse = {
     assert output.count("error:") >= 7
 
 
+def test_provider_availability_invalid_shapes_are_rejected(tmp_path: Path) -> None:
+    fixture = tmp_path / "invalid_a6_provider_availability_types.py"
+    fixture.write_text(
+        """\\
+from tyxter.types import (
+    ProviderConnectionPolicyWarningWebhookData,
+    ProviderConnectionPolicyWarningWebhookEnvelope,
+    ProviderConnectionSendBlockCode,
+    ProviderConnectionSendCapability,
+    ProviderConnectionWabaSendCapability,
+)
+
+invalid_capability: ProviderConnectionSendCapability = "paused"
+invalid_block_code: ProviderConnectionSendBlockCode = 141007
+
+missing_waba_observed_at: ProviderConnectionWabaSendCapability = {
+    "waba_id": "waba_123",
+    "send_capability": "blocked",
+    "send_block_codes": [141006],
+}
+
+non_meta_warning: ProviderConnectionPolicyWarningWebhookData = {
+    "provider_connection_id": "pc_123",
+    "provider": "iniciador",
+    "display_name": "Tyxter Support",
+    "violation_type": "META_FUTURE_VIOLATION",
+    "observed_at": "2026-09-01T10:05:00Z",
+}
+
+wrong_warning_envelope: ProviderConnectionPolicyWarningWebhookEnvelope = {
+    "id": "evt_policy_warning",
+    "type": "provider_connection.disable_scheduled",
+    "created_at": "2026-09-01T10:05:00Z",
+    "environment": "sandbox",
+    "trace_id": "trc_policy_warning",
+    "data": {
+        "provider_connection_id": "pc_123",
+        "provider": "meta",
+        "display_name": "Tyxter Support",
+        "violation_type": "META_FUTURE_VIOLATION",
+        "observed_at": "2026-09-01T10:05:00Z",
+    },
+}
+""",
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    source_path = str(PACKAGE_ROOT / "src")
+    environment["MYPYPATH"] = (
+        source_path
+        if not environment.get("MYPYPATH")
+        else os.pathsep.join((source_path, environment["MYPYPATH"]))
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "mypy", "--strict", str(fixture)],
+        cwd=PACKAGE_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert "paused" in output
+    assert "141007" in output
+    assert "observed_at" in output
+    assert "iniciador" in output
+    assert output.count("error:") >= 5
+
+
 def test_transcription_webhook_cross_variant_fields_are_rejected(tmp_path: Path) -> None:
     fixture = tmp_path / "invalid_a3_transcription_webhook_types.py"
     fixture.write_text(

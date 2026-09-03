@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, TypeAlias
 
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 from .common import Environment, JSONObject
 
@@ -22,6 +22,7 @@ class FlowResponse(TypedDict):
     environment: Environment
     flow_json: JSONObject
     provider_flow_id: str | None
+    provider_missing_since: NotRequired[str | None]
     rejection_reason: str | None
     published_at: str | None
     created_at: str

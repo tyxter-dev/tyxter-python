@@ -32,6 +32,20 @@ TRANSCRIPTION_FAILED_WEBHOOK_BODY = (
     '"error_message":"Provider rejected the media.","language":null,'
     '"completed_at":"2026-08-25T12:00:04Z"}}}'
 )
+POLICY_WARNING_WEBHOOK_BODY = (
+    '{"id":"evt_policy_warning","type":"provider_connection.policy_warning",'
+    '"created_at":"2026-09-01T10:00:00Z","environment":"sandbox",'
+    '"trace_id":"trc_policy_warning","data":{"provider_connection_id":"pc_123",'
+    '"provider":"meta","display_name":"Tyxter Support",'
+    '"violation_type":"META_FUTURE_VIOLATION","observed_at":"2026-09-01T10:00:00Z"}}'
+)
+DISABLE_SCHEDULED_WEBHOOK_BODY = (
+    '{"id":"evt_disable_scheduled","type":"provider_connection.disable_scheduled",'
+    '"created_at":"2026-09-01T10:00:00Z","environment":"production",'
+    '"trace_id":"trc_disable_scheduled","data":{"provider_connection_id":"pc_123",'
+    '"provider":"meta","display_name":"Tyxter Support",'
+    '"waba_ban_date":null,"observed_at":"2026-09-01T10:00:00Z"}}'
+)
 
 
 def test_sign_webhook_matches_platform_crypto_vector() -> None:
@@ -97,6 +111,41 @@ def test_transcription_webhook_json_fixtures_verify_as_opaque_raw_bodies(
         signature=signature,
         now=int(TIMESTAMP),
     )
+    assert verifier.verify(
+        raw_body=raw_body,
+        headers={
+            "tyxter-webhook-timestamp": TIMESTAMP,
+            "tyxter-webhook-signature": signature,
+        },
+        now=int(TIMESTAMP),
+    )
+    assert not verifier.verify(
+        raw_body=f"{raw_body} ",
+        headers={
+            "tyxter-webhook-timestamp": TIMESTAMP,
+            "tyxter-webhook-signature": signature,
+        },
+        now=int(TIMESTAMP),
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw_body", "event_type"),
+    [
+        (POLICY_WARNING_WEBHOOK_BODY, "provider_connection.policy_warning"),
+        (DISABLE_SCHEDULED_WEBHOOK_BODY, "provider_connection.disable_scheduled"),
+    ],
+)
+def test_provider_connection_webhook_json_fixtures_verify_as_opaque_raw_bodies(
+    raw_body: str,
+    event_type: str,
+) -> None:
+    signature = sign_webhook(SECRET, TIMESTAMP, raw_body)
+    verifier = WebhookSignatureVerifier(SECRET)
+
+    parsed = json.loads(raw_body)
+    assert parsed["type"] == event_type
+    assert parsed["data"]["provider"] == "meta"
     assert verifier.verify(
         raw_body=raw_body,
         headers={

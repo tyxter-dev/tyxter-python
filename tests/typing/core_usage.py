@@ -11,6 +11,7 @@ from tyxter.types import (
     CreateTemplateRequest,
     DuplicateTemplateRequest,
     ErrorDiscoveryPointer,
+    FlowResponse,
     InboundMessageMediaConsumed,
     InboundMessageMediaDescriptor,
     InboundMessageMediaFailed,
@@ -49,7 +50,14 @@ from tyxter.types import (
     PhoneNumberResponse,
     PhoneRenewalResponse,
     ProjectResponse,
+    ProviderConnectionDisableScheduledWebhookData,
+    ProviderConnectionDisableScheduledWebhookEnvelope,
+    ProviderConnectionPolicyWarningWebhookData,
+    ProviderConnectionPolicyWarningWebhookEnvelope,
     ProviderConnectionResponse,
+    ProviderConnectionSendBlockCode,
+    ProviderConnectionSendCapability,
+    ProviderConnectionWabaSendCapability,
     ProviderCredentialSetupSessionCompletedOpenAISttResult,
     ProviderCredentialSetupSessionResponse,
     ProviderCredentialSetupSessionResult,
@@ -321,6 +329,67 @@ def a5_phone_name_review_usage(client: Tyxter) -> None:
         recent_messages=[],
     )
     assert_type(legacy_phone, PhoneNumberResponse)
+
+
+def a6_provider_availability_usage(
+    connection: ProviderConnectionResponse,
+    flow: FlowResponse,
+) -> None:
+    capability: ProviderConnectionSendCapability = "blocked"
+    block_code: ProviderConnectionSendBlockCode = 141006
+    waba_capability = ProviderConnectionWabaSendCapability(
+        waba_id="waba_123",
+        send_capability=capability,
+        send_block_codes=[block_code, 141011],
+        observed_at="2026-09-01T10:06:00Z",
+    )
+    policy_data = ProviderConnectionPolicyWarningWebhookData(
+        provider_connection_id="pc_123",
+        provider="meta",
+        display_name="Tyxter Support",
+        violation_type="META_FUTURE_VIOLATION",
+        observed_at="2026-09-01T10:05:00Z",
+    )
+    policy_warning = ProviderConnectionPolicyWarningWebhookEnvelope(
+        id="evt_policy_warning",
+        type="provider_connection.policy_warning",
+        created_at="2026-09-01T10:05:00Z",
+        environment="sandbox",
+        trace_id="trc_policy_warning",
+        data=policy_data,
+    )
+    disable_data = ProviderConnectionDisableScheduledWebhookData(
+        provider_connection_id="pc_123",
+        provider="meta",
+        display_name="Tyxter Support",
+        waba_ban_date=None,
+        observed_at="2026-09-01T10:07:00Z",
+    )
+    disable_scheduled = ProviderConnectionDisableScheduledWebhookEnvelope(
+        id="evt_disable_scheduled",
+        type="provider_connection.disable_scheduled",
+        created_at="2026-09-01T10:07:00Z",
+        environment="sandbox",
+        trace_id="trc_disable_scheduled",
+        data=disable_data,
+    )
+    assert_type(waba_capability["send_capability"], ProviderConnectionSendCapability)
+    assert_type(waba_capability["send_block_codes"], list[ProviderConnectionSendBlockCode])
+    assert_type(policy_warning["data"]["violation_type"], str | None)
+    assert_type(disable_scheduled["data"]["waba_ban_date"], str | None)
+
+    if "last_policy_warning_type" in connection:
+        assert_type(connection["last_policy_warning_type"], str | None)
+    if "send_capability" in connection:
+        assert_type(connection["send_capability"], ProviderConnectionSendCapability | None)
+    if "send_block_codes" in connection:
+        assert_type(connection["send_block_codes"], list[ProviderConnectionSendBlockCode] | None)
+    if "waba_send_capabilities" in connection:
+        assert_type(
+            connection["waba_send_capabilities"], list[ProviderConnectionWabaSendCapability]
+        )
+    if "provider_missing_since" in flow:
+        assert_type(flow["provider_missing_since"], str | None)
 
 
 def a2_message_media_contract_usage(client: Tyxter) -> None:

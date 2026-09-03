@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from tyxter import Tyxter
+from tyxter.types import FlowResponse
 
 
 def body(request: httpx.Request) -> dict[str, object]:
@@ -62,6 +63,73 @@ def test_flows_fiscal_and_feedback_cover_public_routes() -> None:
     assert str(seen[7].url).endswith("/fiscal/nfse/nfse%2F1/xml")
     assert seen[8].headers["idempotency-key"] == "idem_feedback"
     assert seen[8].headers["tyxter-trace-id"] == "trc_feedback"
+
+
+def test_flow_provider_missing_since_reads_preserve_observations() -> None:
+    seen: list[httpx.Request] = []
+
+    def flow_response(provider_missing_since: str | None) -> dict[str, object]:
+        return {
+            "id": "flow_123",
+            "object": "flow",
+            "name": "checkout",
+            "status": "published",
+            "environment": "sandbox",
+            "flow_json": {"version": "1"},
+            "provider_flow_id": "meta_flow_123",
+            "provider_missing_since": provider_missing_since,
+            "rejection_reason": None,
+            "published_at": "2026-09-01T10:00:00Z",
+            "created_at": "2026-09-01T09:00:00Z",
+            "updated_at": "2026-09-01T10:00:00Z",
+        }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/v1/flows":
+            return httpx.Response(
+                200,
+                json={
+                    "object": "list",
+                    "data": [flow_response("2026-09-01T10:05:00Z")],
+                    "has_more": False,
+                    "next_cursor": None,
+                },
+            )
+        return httpx.Response(200, json=flow_response(None))
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    listed = client.flows.list()
+    retrieved = client.flows.retrieve("flow/123")
+
+    assert listed["data"][0]["provider_missing_since"] == "2026-09-01T10:05:00Z"
+    assert retrieved["provider_missing_since"] is None
+    assert [request.method for request in seen] == ["GET", "GET"]
+    assert str(seen[0].url) == "https://api.test/v1/flows"
+    assert str(seen[1].url) == "https://api.test/v1/flows/flow%2F123"
+
+
+def test_flow_response_remains_callable_without_provider_missing_since() -> None:
+    legacy_response = FlowResponse(
+        id="flow_123",
+        object="flow",
+        name="checkout",
+        status="published",
+        environment="sandbox",
+        flow_json={"version": "1"},
+        provider_flow_id="meta_flow_123",
+        rejection_reason=None,
+        published_at="2026-09-01T10:00:00Z",
+        created_at="2026-09-01T09:00:00Z",
+        updated_at="2026-09-01T10:00:00Z",
+    )
+
+    assert "provider_missing_since" not in legacy_response
 
 
 def test_feedback_generates_the_required_idempotency_key_when_omitted() -> None:
