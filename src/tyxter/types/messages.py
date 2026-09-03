@@ -330,7 +330,7 @@ class _InboundMessageMediaBase(TypedDict):
 
 class InboundMessageMediaConsumed(_InboundMessageMediaBase):
     status: Literal["consumed"]
-    download: MediaDownloadHint
+    download: NotRequired[MediaDownloadHint]
 
 
 class InboundMessageMediaFailed(_InboundMessageMediaBase):
@@ -386,8 +386,8 @@ class MessageSummaryResponse(TypedDict):
     template_version_id: str | None
     template_version: int | None
     media: InboundMessageMediaDescriptor | None
-    unsupported: InboundUnsupportedDescriptor | None
-    unknown: InboundUnknownDescriptor | None
+    unsupported: NotRequired[InboundUnsupportedDescriptor | None]
+    unknown: NotRequired[InboundUnknownDescriptor | None]
     payload: JSONValue | None
     metadata: JSONValue | None
     error_code: str | None

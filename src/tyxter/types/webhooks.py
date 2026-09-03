@@ -39,7 +39,7 @@ class WebhookEndpointResponse(TypedDict):
     subscribed_events: list[str]
     status: WebhookEndpointStatus
     disabled_reason: str | None
-    disabled_detail: WebhookEndpointDisabledDetail | None
+    disabled_detail: NotRequired[WebhookEndpointDisabledDetail | None]
     last_failure_at: str | None
     last_success_at: str | None
     environment: Environment

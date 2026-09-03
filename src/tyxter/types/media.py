@@ -40,7 +40,7 @@ class MediaAssetResponse(TypedDict):
     mime_type: str
     byte_length: int
     status: MediaStatus
-    download: MediaDownloadHint | None
+    download: NotRequired[MediaDownloadHint | None]
     expires_at: str | None
     upload_expires_at: str
     completed_at: str | None

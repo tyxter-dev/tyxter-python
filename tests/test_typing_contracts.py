@@ -164,15 +164,6 @@ missing_recipient: CreateMessageRequest = {
     "message": {"type": "text", "text": {"body": "hello"}},
 }
 
-missing_consumed_download: InboundMessageMediaConsumed = {
-    "asset_id": "mda_123",
-    "kind": "audio",
-    "mime_type": "audio/ogg",
-    "byte_length": 12,
-    "filename": None,
-    "status": "consumed",
-}
-
 missing_unsupported_fields: InboundUnsupportedDescriptor = {}
 missing_unknown_provider_type: InboundUnknownDescriptor = {}
 """,
@@ -200,10 +191,9 @@ missing_unknown_provider_type: InboundUnknownDescriptor = {}
     assert 'Extra key "voice"' in output
     assert 'Missing key "sender"' in output
     assert 'Missing key "recipient"' in output
-    assert 'Missing key "download"' in output
     assert "provider_type" in output
     assert "reason" in output
-    assert output.count("error:") >= 8
+    assert output.count("error:") >= 7
 
 
 def test_template_parameter_format_invalid_values_are_rejected(tmp_path: Path) -> None:

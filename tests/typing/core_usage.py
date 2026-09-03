@@ -11,6 +11,7 @@ from tyxter.types import (
     CreateMessageRequest,
     CreateProjectRequest,
     CreateTemplateRequest,
+    CreateWebhookEndpointResponse,
     CreditToppedUpWebhookData,
     CreditToppedUpWebhookEnvelope,
     DuplicateTemplateRequest,
@@ -69,6 +70,7 @@ from tyxter.types import (
     PublicFeedbackReportResponse,
     PurchaseBillingPackageRequest,
     RequestMessageMediaTranscription,
+    RotateWebhookSigningSecretResponse,
     SendMediaMessageInput,
     TemplateGenerationRequest,
     TemplateGenerationResponse,
@@ -80,6 +82,7 @@ from tyxter.types import (
     TypingIndicatorResponse,
     TyxterErrorBody,
     UpdateTemplateRequest,
+    WebhookEndpointResponse,
 )
 
 
@@ -516,10 +519,13 @@ def a2_response_shapes(
 
     assert_type(phone_less, PhoneLessInboundSenderIdentity)
     assert_type(message["sender"], MessageReadSenderIdentity)
-    assert_type(message["unsupported"], InboundUnsupportedDescriptor | None)
-    assert_type(message["unknown"], InboundUnknownDescriptor | None)
-    assert_type(media_asset["download"], MediaDownloadHint | None)
-    if media["status"] == "consumed":
+    if "unsupported" in message:
+        assert_type(message["unsupported"], InboundUnsupportedDescriptor | None)
+    if "unknown" in message:
+        assert_type(message["unknown"], InboundUnknownDescriptor | None)
+    if "download" in media_asset:
+        assert_type(media_asset["download"], MediaDownloadHint | None)
+    if media["status"] == "consumed" and "download" in media:
         assert_type(media, InboundMessageMediaConsumed)
         assert_type(media["download"], MediaDownloadHint)
     if media["status"] == "failed":
@@ -595,7 +601,7 @@ def a2_response_shape_fixtures() -> None:
         "mime_type": "audio/ogg",
         "byte_length": 12,
         "status": "consumed",
-        "download": consumed["download"],
+        "download": {"method": "GET", "path": "/v1/media/mda_consumed/download"},
         "expires_at": None,
         "upload_expires_at": "2026-08-10T12:00:00Z",
         "completed_at": "2026-08-10T12:00:00Z",
@@ -611,7 +617,124 @@ def a2_response_shape_fixtures() -> None:
 
     assert_type(failed["failure"], InboundMessageMediaFailure)
     assert_type(unknown["provider_type"], str | None)
+    if "download" in consumed:
+        assert_type(consumed["download"], MediaDownloadHint)
     a2_response_shapes(message, consumed, media_asset)
+
+
+def whole_branch_r1_legacy_response_constructors() -> None:
+    consumed = InboundMessageMediaConsumed(
+        asset_id="mda_legacy",
+        kind="audio",
+        mime_type="audio/ogg",
+        byte_length=12,
+        filename=None,
+        status="consumed",
+    )
+    message = MessageSummaryResponse(
+        id="msg_legacy",
+        object="message",
+        channel="whatsapp",
+        direction="inbound",
+        type="text",
+        status="received",
+        status_reason=None,
+        environment="sandbox",
+        sender={"type": "phone_e164", "id": ""},
+        recipient={"type": "whatsapp_phone_number", "id": "pn_123"},
+        provider="meta",
+        provider_message_id="wamid_legacy",
+        template_name=None,
+        template_id=None,
+        template_version_id=None,
+        template_version=None,
+        media=None,
+        payload=None,
+        metadata=None,
+        error_code=None,
+        error_message=None,
+        provider_error=None,
+        trace_id="trc_legacy",
+        created_at="2026-08-10T12:00:00Z",
+        updated_at="2026-08-10T12:00:00Z",
+        redacted_at=None,
+        delivery_unconfirmed_at=None,
+    )
+    media_asset = MediaAssetResponse(
+        id="mda_legacy",
+        object="media_asset",
+        source="inbound_provider",
+        provider="meta",
+        provider_media_id="media_legacy",
+        kind="audio",
+        lifecycle="single_use",
+        filename=None,
+        mime_type="audio/ogg",
+        byte_length=12,
+        status="consumed",
+        expires_at=None,
+        upload_expires_at="2026-08-10T12:00:00Z",
+        completed_at="2026-08-10T12:00:00Z",
+        consumed_at="2026-08-10T12:00:00Z",
+        consumed_by_message_id="msg_legacy",
+        deleted_at=None,
+        failure_code=None,
+        failure_message=None,
+        trace_id="trc_legacy",
+        created_at="2026-08-10T12:00:00Z",
+        updated_at="2026-08-10T12:00:00Z",
+    )
+    endpoint = WebhookEndpointResponse(
+        id="whe_legacy",
+        object="webhook_endpoint",
+        url="https://example.test/webhooks",
+        description=None,
+        subscribed_events=["message.sent"],
+        status="active",
+        disabled_reason=None,
+        last_failure_at=None,
+        last_success_at=None,
+        environment="sandbox",
+        created_at="2026-08-10T12:00:00Z",
+        updated_at="2026-08-10T12:00:00Z",
+    )
+    created = CreateWebhookEndpointResponse(
+        id="whe_legacy",
+        object="webhook_endpoint",
+        url="https://example.test/webhooks",
+        description=None,
+        subscribed_events=["message.sent"],
+        status="active",
+        disabled_reason=None,
+        last_failure_at=None,
+        last_success_at=None,
+        environment="sandbox",
+        created_at="2026-08-10T12:00:00Z",
+        updated_at="2026-08-10T12:00:00Z",
+        signing_secret="whsec_legacy",
+    )
+    rotated = RotateWebhookSigningSecretResponse(
+        id="whe_legacy",
+        object="webhook_endpoint",
+        url="https://example.test/webhooks",
+        description=None,
+        subscribed_events=["message.sent"],
+        status="active",
+        disabled_reason=None,
+        last_failure_at=None,
+        last_success_at=None,
+        environment="sandbox",
+        created_at="2026-08-10T12:00:00Z",
+        updated_at="2026-08-10T12:00:00Z",
+        signing_secret="whsec_rotated",
+    )
+
+    assert_type(consumed, InboundMessageMediaConsumed)
+    assert_type(message, MessageSummaryResponse)
+    assert_type(media_asset, MediaAssetResponse)
+    assert_type(endpoint, WebhookEndpointResponse)
+    assert_type(created, CreateWebhookEndpointResponse)
+    assert_type(rotated, RotateWebhookSigningSecretResponse)
 
 
 def a3_transcription_webhook_narrowing(event: MessageMediaTranscriptionWebhookEnvelope) -> None:

@@ -193,6 +193,26 @@ def test_message_reads_preserve_phone_less_and_unsupported_unknown_descriptors()
                     "unknown": {"provider_type": "location"},
                 },
             )
+        if request.url.path.endswith("msg_consumed_media"):
+            return httpx.Response(
+                200,
+                json={
+                    **common,
+                    "id": "msg_consumed_media",
+                    "type": "audio",
+                    "media": {
+                        "asset_id": "mda_123",
+                        "kind": "audio",
+                        "mime_type": "audio/ogg",
+                        "byte_length": 12,
+                        "filename": None,
+                        "status": "consumed",
+                        "download": {"method": "GET", "path": "/v1/media/mda_123/download"},
+                    },
+                    "unsupported": None,
+                    "unknown": None,
+                },
+            )
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     client = Tyxter(
@@ -203,6 +223,7 @@ def test_message_reads_preserve_phone_less_and_unsupported_unknown_descriptors()
 
     unsupported = client.messages.retrieve("msg_unsupported")
     unknown = client.messages.retrieve("msg_unknown")
+    consumed_media = client.messages.retrieve("msg_consumed_media")
 
     assert unsupported["sender"] == {"type": "phone_e164", "id": ""}
     assert unsupported["unsupported"] == {
@@ -212,10 +233,112 @@ def test_message_reads_preserve_phone_less_and_unsupported_unknown_descriptors()
     assert unsupported["unknown"] is None
     assert unknown["unsupported"] is None
     assert unknown["unknown"] == {"provider_type": "location"}
+    assert consumed_media["media"] == {
+        "asset_id": "mda_123",
+        "kind": "audio",
+        "mime_type": "audio/ogg",
+        "byte_length": 12,
+        "filename": None,
+        "status": "consumed",
+        "download": {"method": "GET", "path": "/v1/media/mda_123/download"},
+    }
     assert [request.url.path for request in seen] == [
         "/v1/messages/msg_unsupported",
         "/v1/messages/msg_unknown",
+        "/v1/messages/msg_consumed_media",
     ]
+
+
+def test_additive_media_and_webhook_response_fields_are_preserved_when_present() -> None:
+    seen: list[httpx.Request] = []
+    download = {"method": "GET", "path": "/v1/media/mda_123/download"}
+    disabled_detail = {"last_status_code": 503, "failure_class": "server_error"}
+    media_asset = {
+        "id": "mda_123",
+        "object": "media_asset",
+        "source": "inbound_provider",
+        "provider": "meta",
+        "provider_media_id": "media_123",
+        "kind": "audio",
+        "lifecycle": "single_use",
+        "filename": None,
+        "mime_type": "audio/ogg",
+        "byte_length": 12,
+        "status": "consumed",
+        "download": download,
+        "expires_at": None,
+        "upload_expires_at": "2026-08-10T12:00:00Z",
+        "completed_at": "2026-08-10T12:00:00Z",
+        "consumed_at": "2026-08-10T12:00:00Z",
+        "consumed_by_message_id": "msg_123",
+        "deleted_at": None,
+        "failure_code": None,
+        "failure_message": None,
+        "trace_id": "trc_123",
+        "created_at": "2026-08-10T12:00:00Z",
+        "updated_at": "2026-08-10T12:00:00Z",
+    }
+    endpoint = {
+        "id": "whe_123",
+        "object": "webhook_endpoint",
+        "url": "https://example.test/webhooks",
+        "description": None,
+        "subscribed_events": ["message.sent"],
+        "status": "disabled",
+        "disabled_reason": "consecutive_failures",
+        "disabled_detail": disabled_detail,
+        "last_failure_at": "2026-08-10T12:00:00Z",
+        "last_success_at": None,
+        "environment": "sandbox",
+        "created_at": "2026-08-10T12:00:00Z",
+        "updated_at": "2026-08-10T12:00:00Z",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.method == "GET" and request.url.path == "/v1/media/mda_123":
+            return httpx.Response(200, json=media_asset)
+        if request.method == "GET" and request.url.path == "/v1/webhook-endpoints/whe_123":
+            return httpx.Response(200, json=endpoint)
+        if request.method == "POST" and request.url.path == "/v1/webhook-endpoints":
+            return httpx.Response(200, json={**endpoint, "signing_secret": "whsec_created"})
+        if (
+            request.method == "POST"
+            and request.url.path == "/v1/webhook-endpoints/whe_123/rotate-signing-secret"
+        ):
+            return httpx.Response(200, json={**endpoint, "signing_secret": "whsec_rotated"})
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    retrieved_media = client.media.retrieve("mda_123")
+    retrieved_endpoint = client.webhook_endpoints.get("whe_123")
+    created_endpoint = client.webhook_endpoints.create(
+        {"url": "https://example.test/webhooks", "subscribed_events": ["message.sent"]}
+    )
+    rotated_endpoint = client.webhook_endpoints.rotate_signing_secret("whe_123")
+
+    assert retrieved_media["download"] == download
+    assert retrieved_endpoint["disabled_detail"] == disabled_detail
+    assert created_endpoint["disabled_detail"] == disabled_detail
+    assert created_endpoint["signing_secret"] == "whsec_created"
+    assert rotated_endpoint["disabled_detail"] == disabled_detail
+    assert rotated_endpoint["signing_secret"] == "whsec_rotated"
+    assert [request.url.path for request in seen] == [
+        "/v1/media/mda_123",
+        "/v1/webhook-endpoints/whe_123",
+        "/v1/webhook-endpoints",
+        "/v1/webhook-endpoints/whe_123/rotate-signing-secret",
+    ]
+    assert request_json(seen[2]) == {
+        "url": "https://example.test/webhooks",
+        "subscribed_events": ["message.sent"],
+    }
+    assert not seen[3].content
 
 
 def test_messages_transcription_and_typing_use_encoded_paths_and_trace_headers() -> None:
