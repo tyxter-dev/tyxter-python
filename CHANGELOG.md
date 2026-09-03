@@ -3,28 +3,21 @@
 All notable changes to the Tyxter Python SDK are documented here. The format is
 based on Keep a Changelog, and versions follow Python packaging version rules.
 
-**Version line.** This package shares its version number with the canonical
-[`@tyxter/sdk-js`](https://www.npmjs.com/package/@tyxter/sdk-js), so a given
-version means the same public route surface in both languages. That is why this
-package goes `0.1.0a0` → `0.8.0` rather than incrementing from its own history:
-it is adopting the canonical line, not claiming four releases of its own. Both
-SDKs pin to the same `public-api-launch-endpoints.json` manifest through their
-own conformance suites.
+**Version line.** This package tracks the canonical
+[`@tyxter/sdk-js`](https://www.npmjs.com/package/@tyxter/sdk-js) version for API
+and functional parity. That is why this package goes `0.1.0a0` → `0.8.0` rather
+than incrementing from its own history: it is adopting the canonical line, not
+claiming four releases of its own. Explicitly identified forward-compatible
+additions may follow a later canonical manifest and are kept distinct from the
+published JavaScript tag in these notes.
 
 ## [Unreleased]
 
-These source changes are a draft candidate only; this section does not publish
-an artifact to PyPI.
+No unreleased changes.
 
-### Added
+## [0.8.0] - 2026-09-03
 
-- Read-only `billing.list_phone_renewals()` and `billing.retrieve_phone_renewal()` from post-tag
-  source commit `ed49c514b74a59de3b238d4ebc157f20482b6171`. They are not part of the published
-  `sdk-js-v0.8.0` tag and remain Unreleased.
-
-## [0.8.0] - 2026-09-01
-
-This non-publishing Python source candidate ports published `sdk-js-v0.8.0`
+This Python release ports published `sdk-js-v0.8.0`
 (`58524926a1fa9498bcfe3abb9d7aa8fd39be1e85`). The `sdk-js-v0.7.0` tag was never published, so
 npm 0.8.0 was the first artifact to carry both the 0.7 and 0.8 surfaces. These entries describe
 API functionality and exact wire request, response, and webhook contracts while preserving
@@ -34,6 +27,9 @@ compatible Python call sites; they do not claim identical language-specific type
 
 - Project management, public feedback report reads, webhook endpoint test receipts, and optional
   project-scoped API-key creation.
+- Read-only `billing.list_phone_renewals()` and `billing.retrieve_phone_renewal()` from post-tag
+  source commit `ed49c514b74a59de3b238d4ebc157f20482b6171`. These forward-compatible methods ship
+  in Python 0.8.0 but are not attributed to the published `sdk-js-v0.8.0` tag.
 - WhatsApp voice-note payloads, truthful unsupported/unknown inbound-message reads, phone-less
   inbound senders, media download hints, and media response fields without widening Instagram voice
   inputs or outbound identity requirements.

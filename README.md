@@ -8,21 +8,20 @@ The SDK is alpha software. Additive response fields are compatible and are
 tolerated at runtime. Removing or renaming a public method, field, or stable
 `error.code` requires a deprecation cycle.
 
-The `0.8.0` source line is a non-publishing source candidate. Editing the
-version or these docs does not publish a package, create a tag, or change PyPI
-state.
+Tyxter Python `0.8.0` is published on PyPI. Editing the version or these docs
+alone does not publish another package, create a tag, or change PyPI state;
+releases use the repository's Trusted Publishing workflow.
 
 ## Install
 
-`pip install tyxter` currently installs the published `0.4.0` artifact, pending
-a separate release decision. It does not include the 0.8 candidate documented
-in this checkout. A source checkout/install evaluates that candidate only; it
-does not publish it:
+Install the published SDK with `pip install tyxter`, or pin this release with
+`pip install tyxter==0.8.0`. To evaluate the current repository source instead,
+install a checkout; doing so does not publish it:
 
 ```bash
 git clone https://github.com/tyxter-dev/tyxter-python.git
 cd tyxter-python
-git checkout CANDIDATE_COMMIT_OR_BRANCH
+git checkout main
 uv sync --locked --extra dev
 uv run python -c "import tyxter; print(tyxter.__version__)"
 ```
@@ -508,8 +507,9 @@ all **181** rows: **179** have typed SDK routes, while `PUT` and
 `GET /v1/media/blobs/:token` are the two reviewed capability-token exemptions.
 Those operations use the signed capability token as their sole authority; they
 are not bearer-authenticated SDK routes. This current-manifest count includes
-the two post-tag phone-renewal reads, which remain Unreleased; the published
-`sdk-js-v0.8.0` tag scope is separately pinned at
+the two post-tag phone-renewal reads. They ship in Python 0.8.0 as explicitly
+identified forward-compatible additions and are not attributed to the published
+`sdk-js-v0.8.0` tag, whose scope is separately pinned at
 `58524926a1fa9498bcfe3abb9d7aa8fd39be1e85`. The count is source-conformance
 evidence, not a publication claim.
 
