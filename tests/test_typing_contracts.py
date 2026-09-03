@@ -206,6 +206,60 @@ missing_unknown_provider_type: InboundUnknownDescriptor = {}
     assert output.count("error:") >= 8
 
 
+def test_template_parameter_format_invalid_values_are_rejected(tmp_path: Path) -> None:
+    fixture = tmp_path / "invalid_a4_template_parameter_formats.py"
+    fixture.write_text(
+        """\\
+from tyxter.types import (
+    CreateTemplateRequest,
+    DuplicateTemplateRequest,
+    TemplateGenerationRequest,
+    UpdateTemplateRequest,
+)
+
+invalid_create: CreateTemplateRequest = {
+    "name": "order_tracking",
+    "language": "en_US",
+    "category": "utility",
+    "parameter_format": "named",
+    "components": [],
+}
+
+invalid_generate: TemplateGenerationRequest = {
+    "description": "Tell a customer their order is ready",
+    "language": "en_US",
+    "category": "utility",
+    "parameter_format": "POSITION",
+}
+
+invalid_update: UpdateTemplateRequest = {"parameter_format": "positional"}
+invalid_duplicate: DuplicateTemplateRequest = {"parameter_format": "UNSUPPORTED"}
+""",
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    source_path = str(PACKAGE_ROOT / "src")
+    environment["MYPYPATH"] = (
+        source_path
+        if not environment.get("MYPYPATH")
+        else os.pathsep.join((source_path, environment["MYPYPATH"]))
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "mypy", "--strict", str(fixture)],
+        cwd=PACKAGE_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert "parameter_format" in output
+    assert output.count("error:") >= 4
+
+
 def test_transcription_webhook_cross_variant_fields_are_rejected(tmp_path: Path) -> None:
     fixture = tmp_path / "invalid_a3_transcription_webhook_types.py"
     fixture.write_text(

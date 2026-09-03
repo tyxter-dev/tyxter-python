@@ -11,6 +11,7 @@ TemplateStatus: TypeAlias = Literal[
     "draft", "submitted", "approved", "rejected", "paused", "disabled", "orphaned"
 ]
 TemplateQuality: TypeAlias = Literal["green", "yellow", "red", "unknown"]
+TemplateParameterFormat: TypeAlias = Literal["POSITIONAL", "NAMED"]
 
 
 class TemplateAuthoringSignal(TypedDict):
@@ -27,6 +28,7 @@ class TemplateResponse(TypedDict):
     name: str
     language: str
     category: TemplateCategory
+    parameter_format: NotRequired[TemplateParameterFormat]
     status: TemplateStatus
     environment: Environment
     components: list[JSONObject]
@@ -44,6 +46,7 @@ class CreateTemplateRequest(TypedDict):
     name: str
     language: str
     category: TemplateCategory
+    parameter_format: NotRequired[TemplateParameterFormat]
     components: list[JSONObject]
 
 
@@ -51,6 +54,7 @@ class TemplateGenerationRequest(TypedDict):
     description: str
     language: str
     category: TemplateCategory
+    parameter_format: NotRequired[TemplateParameterFormat]
     name: NotRequired[str]
     template_type: NotRequired[Literal["text", "media"]]
 
@@ -59,6 +63,7 @@ class UpdateTemplateRequest(TypedDict, total=False):
     name: str
     language: str
     category: TemplateCategory
+    parameter_format: TemplateParameterFormat
     components: list[JSONObject]
 
 
@@ -66,6 +71,7 @@ class DuplicateTemplateRequest(TypedDict, total=False):
     name: str
     language: str
     category: TemplateCategory
+    parameter_format: TemplateParameterFormat
 
 
 class ListTemplatesResponse(TypedDict):
@@ -80,6 +86,7 @@ class TemplateGenerationResponse(TypedDict):
     name: str
     language: str
     category: TemplateCategory
+    parameter_format: NotRequired[TemplateParameterFormat]
     components: list[JSONObject]
     authoring_signals: list[TemplateAuthoringSignal]
 

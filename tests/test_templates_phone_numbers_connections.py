@@ -6,7 +6,7 @@ from typing import cast
 import httpx
 
 from tyxter import Tyxter
-from tyxter.types import ProviderCredentialSetupSessionResponse
+from tyxter.types import ProviderCredentialSetupSessionResponse, TemplateResponse
 
 
 def body(request: httpx.Request) -> dict[str, object]:
@@ -17,6 +17,56 @@ def make_client(seen: list[httpx.Request]) -> Tyxter:
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
         return httpx.Response(200, json={"ok": True})
+
+    return Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+
+def template_response(parameter_format: str) -> dict[str, object]:
+    return {
+        "id": "tpl_123",
+        "object": "template",
+        "name": "order_tracking",
+        "language": "en_US",
+        "category": "utility",
+        "parameter_format": parameter_format,
+        "status": "draft",
+        "environment": "sandbox",
+        "components": [],
+        "provider_template_id": None,
+        "rejection_reason": None,
+        "provider_quality": "unknown",
+        "authoring_signals": [],
+        "submitted_at": None,
+        "approved_at": None,
+        "created_at": "2026-08-26T12:00:00Z",
+        "updated_at": "2026-08-26T12:00:00Z",
+    }
+
+
+def make_template_client(seen: list[httpx.Request]) -> Tyxter:
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        request_body = body(request) if request.content else {}
+        parameter_format = request_body.get("parameter_format", "POSITIONAL")
+        assert isinstance(parameter_format, str)
+        if request.url.path.endswith("/templates/generate"):
+            return httpx.Response(
+                200,
+                json={
+                    "object": "template_generation",
+                    "name": "order_tracking",
+                    "language": "en_US",
+                    "category": "utility",
+                    "parameter_format": parameter_format,
+                    "components": [],
+                    "authoring_signals": [],
+                },
+            )
+        return httpx.Response(200, json=template_response(parameter_format))
 
     return Tyxter(
         api_key="tx_sandbox_test",
@@ -65,6 +115,200 @@ def test_templates_cover_all_routes_and_only_generate_is_idempotent() -> None:
     assert seen[7].url.path.endswith("/analytics")
     assert body(seen[8]) == {"recipients": 20}
     assert seen[9].method == "DELETE"
+
+
+def test_template_parameter_formats_are_forwarded_and_returned() -> None:
+    seen: list[httpx.Request] = []
+    client = make_template_client(seen)
+
+    generated = client.templates.generate(
+        {
+            "description": "Tell a customer their order is ready",
+            "language": "en_US",
+            "category": "utility",
+            "parameter_format": "NAMED",
+        }
+    )
+    created = client.templates.create(
+        {
+            "name": "order_tracking",
+            "language": "en_US",
+            "category": "utility",
+            "parameter_format": "NAMED",
+            "components": [{"type": "BODY", "text": "Hi {{customer_name}}"}],
+        }
+    )
+    updated = client.templates.update("tpl_123", {"parameter_format": "POSITIONAL"})
+    duplicated = client.templates.duplicate("tpl_123", {"parameter_format": "NAMED"})
+
+    assert generated["parameter_format"] == "NAMED"
+    assert created["parameter_format"] == "NAMED"
+    assert updated["parameter_format"] == "POSITIONAL"
+    assert duplicated["parameter_format"] == "NAMED"
+    assert [body(request) for request in seen] == [
+        {
+            "description": "Tell a customer their order is ready",
+            "language": "en_US",
+            "category": "utility",
+            "parameter_format": "NAMED",
+        },
+        {
+            "name": "order_tracking",
+            "language": "en_US",
+            "category": "utility",
+            "parameter_format": "NAMED",
+            "components": [{"type": "BODY", "text": "Hi {{customer_name}}"}],
+        },
+        {"parameter_format": "POSITIONAL"},
+        {"parameter_format": "NAMED"},
+    ]
+
+
+def test_template_parameter_format_omission_preserves_existing_payloads() -> None:
+    seen: list[httpx.Request] = []
+    client = make_template_client(seen)
+
+    client.templates.generate(
+        {
+            "description": "Tell a customer their order is ready",
+            "language": "en_US",
+            "category": "utility",
+        }
+    )
+    client.templates.create(
+        {
+            "name": "order_tracking",
+            "language": "en_US",
+            "category": "utility",
+            "components": [{"type": "BODY", "text": "Ready"}],
+        }
+    )
+    client.templates.update("tpl_123", {})
+    client.templates.duplicate("tpl_123")
+
+    assert [body(request) for request in seen] == [
+        {
+            "description": "Tell a customer their order is ready",
+            "language": "en_US",
+            "category": "utility",
+        },
+        {
+            "name": "order_tracking",
+            "language": "en_US",
+            "category": "utility",
+            "components": [{"type": "BODY", "text": "Ready"}],
+        },
+        {},
+        {},
+    ]
+
+
+def test_template_copy_code_authoring_and_direct_send_shapes_stay_distinct() -> None:
+    seen: list[httpx.Request] = []
+    client = make_client(seen)
+
+    client.templates.create(
+        {
+            "name": "winter_coupon",
+            "language": "en_US",
+            "category": "marketing",
+            "components": [
+                {"type": "BODY", "text": "Use this coupon at checkout."},
+                {"type": "BUTTONS", "buttons": [{"type": "COPY_CODE", "example": "WINTER25"}]},
+            ],
+        }
+    )
+    client.whatsapp.send_template(
+        {
+            "from": "pn_123",
+            "to": "+15555550100",
+            "name": "order_tracking",
+            "language": "en_US",
+            "variables": {"1": "Ana"},
+        }
+    )
+    client.whatsapp.send_template(
+        {
+            "from": "pn_123",
+            "to": "+15555550100",
+            "name": "winter_coupon",
+            "language": "en_US",
+            "components": [
+                {
+                    "type": "button",
+                    "sub_type": "copy_code",
+                    "index": 0,
+                    "parameters": [{"type": "coupon_code", "coupon_code": "WINTER25"}],
+                }
+            ],
+        }
+    )
+
+    assert body(seen[0]) == {
+        "name": "winter_coupon",
+        "language": "en_US",
+        "category": "marketing",
+        "components": [
+            {"type": "BODY", "text": "Use this coupon at checkout."},
+            {"type": "BUTTONS", "buttons": [{"type": "COPY_CODE", "example": "WINTER25"}]},
+        ],
+    }
+    assert body(seen[1]) == {
+        "channel": "whatsapp",
+        "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "recipient": {"type": "phone_e164", "id": "+15555550100"},
+        "message": {
+            "type": "template",
+            "template": {
+                "name": "order_tracking",
+                "language": "en_US",
+                "variables": {"1": "Ana"},
+            },
+        },
+    }
+    assert body(seen[2]) == {
+        "channel": "whatsapp",
+        "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "recipient": {"type": "phone_e164", "id": "+15555550100"},
+        "message": {
+            "type": "template",
+            "template": {
+                "name": "winter_coupon",
+                "language": "en_US",
+                "components": [
+                    {
+                        "type": "button",
+                        "sub_type": "copy_code",
+                        "index": 0,
+                        "parameters": [{"type": "coupon_code", "coupon_code": "WINTER25"}],
+                    }
+                ],
+            },
+        },
+    }
+
+
+def test_template_response_remains_callable_without_additive_parameter_format() -> None:
+    legacy_response = TemplateResponse(
+        id="tpl_123",
+        object="template",
+        name="order_tracking",
+        language="en_US",
+        category="utility",
+        status="draft",
+        environment="sandbox",
+        components=[],
+        provider_template_id=None,
+        rejection_reason=None,
+        provider_quality="unknown",
+        authoring_signals=[],
+        submitted_at=None,
+        approved_at=None,
+        created_at="2026-08-26T12:00:00Z",
+        updated_at="2026-08-26T12:00:00Z",
+    )
+
+    assert "parameter_format" not in legacy_response
 
 
 def test_phone_numbers_cover_lifecycle_and_escape_ids() -> None:

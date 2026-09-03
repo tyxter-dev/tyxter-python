@@ -8,6 +8,8 @@ from tyxter.types import (
     CreateApiKeyResponse,
     CreateMessageRequest,
     CreateProjectRequest,
+    CreateTemplateRequest,
+    DuplicateTemplateRequest,
     ErrorDiscoveryPointer,
     InboundMessageMediaConsumed,
     InboundMessageMediaDescriptor,
@@ -52,9 +54,14 @@ from tyxter.types import (
     PublicFeedbackReportResponse,
     RequestMessageMediaTranscription,
     SendMediaMessageInput,
+    TemplateGenerationRequest,
+    TemplateGenerationResponse,
+    TemplateParameterFormat,
+    TemplateResponse,
     TestWebhookEndpointResponse,
     TypingIndicatorResponse,
     TyxterErrorBody,
+    UpdateTemplateRequest,
 )
 
 
@@ -185,6 +192,71 @@ def a1_response_shapes(
         assert_type(provider_connection["display_phone_number"], str | None)
     if "suspension_reason" in provider_connection:
         assert_type(provider_connection["suspension_reason"], str | None)
+
+
+def a4_template_authoring_usage(client: Tyxter) -> None:
+    positional_format: TemplateParameterFormat = "POSITIONAL"
+    named_format: TemplateParameterFormat = "NAMED"
+    assert_type(positional_format, TemplateParameterFormat)
+    assert_type(named_format, TemplateParameterFormat)
+
+    create: CreateTemplateRequest = {
+        "name": "order_tracking",
+        "language": "en_US",
+        "category": "utility",
+        "parameter_format": named_format,
+        "components": [{"type": "BODY", "text": "Hi {{customer_name}}"}],
+    }
+    generate: TemplateGenerationRequest = {
+        "description": "Tell a customer their order is ready",
+        "language": "en_US",
+        "category": "utility",
+        "parameter_format": named_format,
+    }
+    update: UpdateTemplateRequest = {"parameter_format": positional_format}
+    duplicate: DuplicateTemplateRequest = {"parameter_format": named_format}
+
+    generated = client.templates.generate(generate)
+    created = client.templates.create(create)
+    updated = client.templates.update("tpl_123", update)
+    duplicated = client.templates.duplicate("tpl_123", duplicate)
+    assert_type(generated, TemplateGenerationResponse)
+    assert_type(created, TemplateResponse)
+    assert_type(updated, TemplateResponse)
+    assert_type(duplicated, TemplateResponse)
+    if "parameter_format" in generated:
+        assert_type(generated["parameter_format"], TemplateParameterFormat)
+    if "parameter_format" in created:
+        assert_type(created["parameter_format"], TemplateParameterFormat)
+
+    legacy_template = TemplateResponse(
+        id="tpl_123",
+        object="template",
+        name="order_tracking",
+        language="en_US",
+        category="utility",
+        status="draft",
+        environment="sandbox",
+        components=[],
+        provider_template_id=None,
+        rejection_reason=None,
+        provider_quality="unknown",
+        authoring_signals=[],
+        submitted_at=None,
+        approved_at=None,
+        created_at="2026-08-26T12:00:00Z",
+        updated_at="2026-08-26T12:00:00Z",
+    )
+    legacy_generation = TemplateGenerationResponse(
+        object="template_generation",
+        name="order_tracking",
+        language="en_US",
+        category="utility",
+        components=[],
+        authoring_signals=[],
+    )
+    assert_type(legacy_template, TemplateResponse)
+    assert_type(legacy_generation, TemplateGenerationResponse)
 
 
 def a2_message_media_contract_usage(client: Tyxter) -> None:

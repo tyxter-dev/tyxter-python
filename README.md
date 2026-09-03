@@ -226,6 +226,105 @@ with `ProviderCredentialSetupSessionResponse`, including mutable status and
 completion fields. Use `create_result()` or `retrieve_result()` when strict type
 narrowing must distinguish provider-connection, TTS, and STT completion axes.
 
+## Template authoring
+
+Omit `parameter_format` on create or generation to select the compatible `"POSITIONAL"` default.
+On update, omission retains the draft or rejected template's current format; on duplicate, it inherits
+the source template's format. Set `"NAMED"` when BODY values are bound by their parameter names.
+The approved template version, not a send request, determines how its variables are resolved.
+
+```python
+from time import sleep
+
+named_template = client.templates.create(
+    {
+        "name": "order_tracking",
+        "language": "en_US",
+        "category": "utility",
+        "parameter_format": "NAMED",
+        "components": [
+            {
+                "type": "BODY",
+                "text": "Hi {{customer_name}}, order {{order_id}} is ready.",
+                "example": {
+                    "body_text_named_params": [
+                        {"param_name": "customer_name", "example": "Ana"},
+                        {"param_name": "order_id", "example": "ORD-123"},
+                    ]
+                },
+            }
+        ],
+    }
+)
+
+client.templates.submit(named_template["id"])
+approved_template = client.templates.retrieve(named_template["id"])
+while approved_template["status"] == "submitted":
+    sleep(5)  # Use application-appropriate polling/backoff in production.
+    approved_template = client.templates.retrieve(named_template["id"])
+if approved_template["status"] != "approved":
+    raise RuntimeError(f"Template was not approved: {approved_template['status']}")
+
+client.whatsapp.send_template(
+    {
+        "from": "pn_123",
+        "to": "+5511999999999",
+        "name": named_template["name"],
+        "language": named_template["language"],
+        # No send-time parameter_format: the approved version selects NAMED.
+        "variables": {"customer_name": "Ana", "order_id": "ORD-123"},
+    }
+)
+```
+
+Standalone `COPY_CODE` is a marketing coupon button, not an authentication OTP button with
+`{"type": "OTP", "otp_type": "COPY_CODE"}`. Author it without a `text` field; the service
+accepts one nonempty coupon example of at most 20 characters on a marketing template.
+
+```python
+from time import sleep
+
+coupon_template = client.templates.create(
+    {
+        "name": "winter_coupon",
+        "language": "en_US",
+        "category": "marketing",
+        "components": [
+            {"type": "BODY", "text": "Use this coupon at checkout."},
+            {"type": "BUTTONS", "buttons": [{"type": "COPY_CODE", "example": "WINTER25"}]},
+        ],
+    }
+)
+
+client.templates.submit(coupon_template["id"])
+approved_coupon = client.templates.retrieve(coupon_template["id"])
+while approved_coupon["status"] == "submitted":
+    sleep(5)  # Use application-appropriate polling/backoff in production.
+    approved_coupon = client.templates.retrieve(coupon_template["id"])
+if approved_coupon["status"] != "approved":
+    raise RuntimeError(f"Template was not approved: {approved_coupon['status']}")
+
+client.whatsapp.send_template(
+    {
+        "from": "pn_123",
+        "to": "+5511999999999",
+        "name": coupon_template["name"],
+        "language": coupon_template["language"],
+        "components": [
+            {
+                "type": "button",
+                "sub_type": "copy_code",
+                "index": 0,
+                "parameters": [{"type": "coupon_code", "coupon_code": "WINTER25"}],
+            }
+        ],
+    }
+)
+```
+
+`client.batches.create` intentionally does not support this COPY_CODE send shape: its batch
+contract has no per-recipient button-parameter source.
+
 ## Pagination
 
 List methods return cursor pages. Continue with `next_cursor` only when
