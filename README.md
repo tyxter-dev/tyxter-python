@@ -157,7 +157,22 @@ Inbound message reads and lists expose a typed `media` descriptor with the
 Tyxter `mda_*` asset ID. Use `client.media.list(source="inbound_provider")` to
 find imported provider media and `client.media.create_download_url(asset_id)`
 to mint a fresh, short-lived `download_url`; do not assume a previous capability
-URL remains valid.
+URL remains valid. A consumed inbound descriptor also has a `download` hint
+(`{"method": "GET", "path": ...}`); treat it as the API's current download
+affordance rather than a durable provider URL. Failed media carries `failure`,
+while expired and deleted media carry neither a download nor a failure.
+
+For WhatsApp OGG/Opus mono audio, `client.whatsapp.send_media(...)` accepts
+`"voice": True` to request a native voice note; omit it or pass `False` for
+ordinary audio. Instagram media has a separate input shape: ordinary image,
+document, audio, and video sends remain valid, but it deliberately has no
+`voice` field. An inbound WhatsApp sender can be phone-less, represented on
+reads only as `{"type": "phone_e164", "id": ""}`; do not reuse it as an
+outbound recipient. `type == "unsupported"` means the provider withheld the
+content and supplies an `unsupported` descriptor when available, whereas
+`type == "unknown"` means content arrived but has no typed projection yet—read
+its raw `payload` through `retrieve()` or `list(include="payload")` instead of
+treating it as a refusal. A default list row may have `payload` set to `None`.
 
 For a WhatsApp typing indicator, pass the Tyxter message ID from
 `message.received.data.message_id`. The webhook envelope's top-level `id` is the

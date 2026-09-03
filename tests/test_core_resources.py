@@ -81,6 +81,89 @@ def test_channel_resources_build_canonical_message_requests() -> None:
     }
 
 
+def test_channel_media_resources_preserve_voice_intent_and_instagram_omission() -> None:
+    client, seen = make_client()
+
+    client.whatsapp.send_media(
+        {
+            "from": "pn_123",
+            "to": "+15555550100",
+            "media": {
+                "kind": "audio",
+                "link": "https://cdn.example.test/voice-note.ogg",
+                "voice": True,
+            },
+        }
+    )
+    client.messages.send_media(
+        {
+            "channel": "whatsapp",
+            "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+            "recipient": {"type": "phone_e164", "id": "+15555550100"},
+            "media": {
+                "kind": "audio",
+                "link": "https://cdn.example.test/ordinary-audio.ogg",
+                "voice": False,
+            },
+        }
+    )
+    client.instagram.send_media(
+        {
+            "account_id": "ig_123",
+            "user_id": "igsid_456",
+            "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+        }
+    )
+    client.messages.create(
+        {
+            "channel": "instagram",
+            "sender": {"type": "instagram_account", "id": "ig_123"},
+            "recipient": {"type": "instagram_user", "id": "igsid_456"},
+            "message": {
+                "type": "media",
+                "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+            },
+        }
+    )
+    client.messages.send_media(
+        {
+            "channel": "instagram",
+            "sender": {"type": "instagram_account", "id": "ig_123"},
+            "recipient": {"type": "instagram_user", "id": "igsid_456"},
+            "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+        }
+    )
+
+    assert body(seen[0])["message"] == {
+        "type": "media",
+        "media": {
+            "kind": "audio",
+            "link": "https://cdn.example.test/voice-note.ogg",
+            "voice": True,
+        },
+    }
+    assert body(seen[1])["message"] == {
+        "type": "media",
+        "media": {
+            "kind": "audio",
+            "link": "https://cdn.example.test/ordinary-audio.ogg",
+            "voice": False,
+        },
+    }
+    assert body(seen[2])["message"] == {
+        "type": "media",
+        "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+    }
+    assert body(seen[3])["message"] == {
+        "type": "media",
+        "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+    }
+    assert body(seen[4])["message"] == {
+        "type": "media",
+        "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+    }
+
+
 def test_sandbox_resource_covers_quickstart_and_deterministic_controls() -> None:
     client, seen = make_client()
 
@@ -89,6 +172,17 @@ def test_sandbox_resource_covers_quickstart_and_deterministic_controls() -> None
         {"from": "+15555550100", "to": "pn_123", "type": "text", "text": {"body": "hi"}},
         idempotency_key="idem_inbound",
         trace_id="trc_inbound",
+    )
+    client.sandbox.inbound_messages.create(
+        {
+            "from": "+15555550100",
+            "to": "pn_123",
+            "type": "unsupported",
+            "unsupported": {"provider_type": "video_note"},
+        }
+    )
+    client.sandbox.inbound_messages.create(
+        {"from": "+15555550100", "to": "pn_123", "type": "unknown"}
     )
     client.sandbox.templates.set_status(
         "tmpl/123",
@@ -110,20 +204,29 @@ def test_sandbox_resource_covers_quickstart_and_deterministic_controls() -> None
     assert [(request.method, request.url.path) for request in seen] == [
         ("GET", "/v1/sandbox/quickstart"),
         ("POST", "/v1/sandbox/inbound-messages"),
+        ("POST", "/v1/sandbox/inbound-messages"),
+        ("POST", "/v1/sandbox/inbound-messages"),
         ("POST", "/v1/sandbox/templates/tmpl/123/status"),
         ("POST", "/v1/sandbox/payments/pay/123/status"),
         ("POST", "/v1/sandbox/llm/failure"),
     ]
-    assert str(seen[2].url) == "https://api.test/v1/sandbox/templates/tmpl%2F123/status"
-    assert str(seen[3].url) == "https://api.test/v1/sandbox/payments/pay%2F123/status"
+    assert body(seen[2]) == {
+        "from": "+15555550100",
+        "to": "pn_123",
+        "type": "unsupported",
+        "unsupported": {"provider_type": "video_note"},
+    }
+    assert body(seen[3]) == {"from": "+15555550100", "to": "pn_123", "type": "unknown"}
+    assert str(seen[4].url) == "https://api.test/v1/sandbox/templates/tmpl%2F123/status"
+    assert str(seen[5].url) == "https://api.test/v1/sandbox/payments/pay%2F123/status"
     assert seen[1].headers["idempotency-key"] == "idem_inbound"
     assert seen[1].headers["tyxter-trace-id"] == "trc_inbound"
-    assert seen[2].headers["tyxter-trace-id"] == "trc_template"
-    assert seen[3].headers["idempotency-key"] == "idem_payment"
-    assert seen[3].headers["tyxter-trace-id"] == "trc_payment"
-    assert body(seen[4]) == {"failure": "provider_down", "ttl_seconds": 60}
-    assert seen[4].headers["idempotency-key"] == "idem_llm"
-    assert seen[4].headers["tyxter-trace-id"] == "trc_llm"
+    assert seen[4].headers["tyxter-trace-id"] == "trc_template"
+    assert seen[5].headers["idempotency-key"] == "idem_payment"
+    assert seen[5].headers["tyxter-trace-id"] == "trc_payment"
+    assert body(seen[6]) == {"failure": "provider_down", "ttl_seconds": 60}
+    assert seen[6].headers["idempotency-key"] == "idem_llm"
+    assert seen[6].headers["tyxter-trace-id"] == "trc_llm"
 
 
 def test_webhook_events_resource_covers_listen_inspect_and_resend_routes() -> None:

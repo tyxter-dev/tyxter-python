@@ -26,6 +26,14 @@ class MessageIdentity(TypedDict):
     id: str
 
 
+class PhoneLessInboundSenderIdentity(TypedDict):
+    type: Literal["phone_e164"]
+    id: Literal[""]
+
+
+MessageReadSenderIdentity: TypeAlias = MessageIdentity | PhoneLessInboundSenderIdentity
+
+
 class StructuredPhoneRecipient(TypedDict):
     type: Literal["phone_e164"]
     country_calling_code: str
@@ -76,6 +84,19 @@ class InlineMediaPayload(TypedDict):
 
 class MediaMessagePayload(TypedDict):
     kind: MediaKind
+    id: NotRequired[str]
+    link: NotRequired[str]
+    asset_id: NotRequired[str]
+    inline: NotRequired[InlineMediaPayload]
+    source: NotRequired[TTSMediaSource]
+    caption: NotRequired[str]
+    filename: NotRequired[str]
+    mime_type: NotRequired[str]
+    voice: NotRequired[bool]
+
+
+class InstagramMediaMessagePayload(TypedDict):
+    kind: Literal["image", "document", "audio", "video"]
     id: NotRequired[str]
     link: NotRequired[str]
     asset_id: NotRequired[str]
@@ -201,7 +222,7 @@ class OutboundMessage(TypedDict):
     type: MessageKind
     text: NotRequired[TextMessagePayload]
     template: NotRequired[TemplateMessagePayload]
-    media: NotRequired[MediaMessagePayload]
+    media: NotRequired[MediaMessagePayload | InstagramMediaMessagePayload]
     interactive: NotRequired[InteractivePayload]
     flow: NotRequired[FlowMessagePayload]
 
@@ -292,6 +313,11 @@ class InboundMessageMediaFailure(TypedDict):
     message: str
 
 
+class MediaDownloadHint(TypedDict):
+    method: Literal["GET"]
+    path: str
+
+
 class _InboundMessageMediaBase(TypedDict):
     asset_id: str
     kind: MediaKind
@@ -299,10 +325,12 @@ class _InboundMessageMediaBase(TypedDict):
     byte_length: int
     filename: str | None
     provider_media_id: NotRequired[str]
+    voice: NotRequired[bool]
 
 
 class InboundMessageMediaConsumed(_InboundMessageMediaBase):
     status: Literal["consumed"]
+    download: MediaDownloadHint
 
 
 class InboundMessageMediaFailed(_InboundMessageMediaBase):
@@ -326,6 +354,20 @@ InboundMessageMediaDescriptor: TypeAlias = (
 )
 
 
+class InboundUnsupportedReason(TypedDict):
+    code: int
+    message: str
+
+
+class InboundUnsupportedDescriptor(TypedDict):
+    provider_type: str | None
+    reason: InboundUnsupportedReason | None
+
+
+class InboundUnknownDescriptor(TypedDict):
+    provider_type: str | None
+
+
 class MessageSummaryResponse(TypedDict):
     id: str
     object: Literal["message"]
@@ -335,7 +377,7 @@ class MessageSummaryResponse(TypedDict):
     status: str
     status_reason: str | None
     environment: Environment
-    sender: MessageIdentity
+    sender: MessageReadSenderIdentity
     recipient: MessageIdentity
     provider: str | None
     provider_message_id: str | None
@@ -344,6 +386,8 @@ class MessageSummaryResponse(TypedDict):
     template_version_id: str | None
     template_version: int | None
     media: InboundMessageMediaDescriptor | None
+    unsupported: InboundUnsupportedDescriptor | None
+    unknown: InboundUnknownDescriptor | None
     payload: JSONValue | None
     metadata: JSONValue | None
     error_code: str | None
@@ -486,7 +530,7 @@ class InstagramTextMessageInput(TypedDict):
 class InstagramMediaMessageInput(TypedDict):
     account_id: str
     user_id: str
-    media: MediaMessagePayload
+    media: InstagramMediaMessagePayload
     metadata: NotRequired[JSONObject]
 
 

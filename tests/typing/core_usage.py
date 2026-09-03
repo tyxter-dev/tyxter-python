@@ -8,22 +8,31 @@ from tyxter.types import (
     CreateApiKeyResponse,
     CreateMessageRequest,
     CreateProjectRequest,
+    InboundMessageMediaConsumed,
     InboundMessageMediaDescriptor,
     InboundMessageMediaFailed,
     InboundMessageMediaFailure,
+    InboundUnknownDescriptor,
+    InboundUnsupportedDescriptor,
+    InstagramMediaMessageInput,
     ListMediaAssetsResponse,
     ListMessagesResponse,
     ListPhoneRenewalsResponse,
     ListProjectsResponse,
     ListPublicFeedbackReportsResponse,
     MediaAssetDownloadResponse,
+    MediaAssetResponse,
+    MediaDownloadHint,
+    MediaMessagePayload,
     MessageBatchPacingResponse,
     MessageBatchResponse,
     MessageDetailResponse,
     MessageMediaTranscriptResponse,
+    MessageReadSenderIdentity,
     MessageResponse,
     MessageSummaryResponse,
     NativePixOrderDetailsMessagePayload,
+    PhoneLessInboundSenderIdentity,
     PhoneNumberResponse,
     PhoneRenewalResponse,
     ProjectResponse,
@@ -34,6 +43,7 @@ from tyxter.types import (
     ProviderCredentialSetupSttProvider,
     PublicFeedbackReportResponse,
     RequestMessageMediaTranscription,
+    SendMediaMessageInput,
     TestWebhookEndpointResponse,
     TypingIndicatorResponse,
 )
@@ -166,6 +176,152 @@ def a1_response_shapes(
         assert_type(provider_connection["display_phone_number"], str | None)
     if "suspension_reason" in provider_connection:
         assert_type(provider_connection["suspension_reason"], str | None)
+
+
+def a2_message_media_contract_usage(client: Tyxter) -> None:
+    whatsapp_media: MediaMessagePayload = {
+        "kind": "audio",
+        "link": "https://cdn.example.test/voice-note.ogg",
+        "voice": True,
+    }
+    instagram_media: InstagramMediaMessageInput = {
+        "account_id": "ig_123",
+        "user_id": "igsid_456",
+        "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+    }
+    outbound_request: CreateMessageRequest = {
+        "channel": "whatsapp",
+        "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "recipient": {"type": "phone_e164", "id": "+15555550100"},
+        "message": {"type": "media", "media": whatsapp_media},
+    }
+    instagram_create: CreateMessageRequest = {
+        "channel": "instagram",
+        "sender": {"type": "instagram_account", "id": "ig_123"},
+        "recipient": {"type": "instagram_user", "id": "igsid_456"},
+        "message": {
+            "type": "media",
+            "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+        },
+    }
+    instagram_send: SendMediaMessageInput = {
+        "channel": "instagram",
+        "sender": {"type": "instagram_account", "id": "ig_123"},
+        "recipient": {"type": "instagram_user", "id": "igsid_456"},
+        "media": {"kind": "image", "link": "https://cdn.example.test/photo.jpg"},
+    }
+
+    assert_type(client.messages.create(outbound_request), MessageResponse)
+    assert_type(client.messages.create(instagram_create), MessageResponse)
+    assert_type(client.messages.send_media(instagram_send), MessageResponse)
+    assert_type(client.instagram.send_media(instagram_media), MessageResponse)
+
+
+def a2_response_shapes(
+    message: MessageSummaryResponse,
+    media: InboundMessageMediaDescriptor,
+    media_asset: MediaAssetResponse,
+) -> None:
+    phone_less: PhoneLessInboundSenderIdentity = {"type": "phone_e164", "id": ""}
+
+    assert_type(phone_less, PhoneLessInboundSenderIdentity)
+    assert_type(message["sender"], MessageReadSenderIdentity)
+    assert_type(message["unsupported"], InboundUnsupportedDescriptor | None)
+    assert_type(message["unknown"], InboundUnknownDescriptor | None)
+    assert_type(media_asset["download"], MediaDownloadHint | None)
+    if media["status"] == "consumed":
+        assert_type(media, InboundMessageMediaConsumed)
+        assert_type(media["download"], MediaDownloadHint)
+    if media["status"] == "failed":
+        assert_type(media, InboundMessageMediaFailed)
+        assert_type(media["failure"], InboundMessageMediaFailure)
+
+
+def a2_response_shape_fixtures() -> None:
+    phone_less: PhoneLessInboundSenderIdentity = {"type": "phone_e164", "id": ""}
+    consumed: InboundMessageMediaConsumed = {
+        "asset_id": "mda_consumed",
+        "kind": "audio",
+        "mime_type": "audio/ogg",
+        "byte_length": 12,
+        "filename": None,
+        "status": "consumed",
+        "download": {"method": "GET", "path": "/v1/media/mda_consumed/download"},
+    }
+    failed: InboundMessageMediaFailed = {
+        "asset_id": "mda_failed",
+        "kind": "audio",
+        "mime_type": "audio/ogg",
+        "byte_length": 12,
+        "filename": None,
+        "status": "failed",
+        "failure": {"code": "media_fetch_failed", "message": "Provider fetch failed."},
+    }
+    unsupported: InboundUnsupportedDescriptor = {
+        "provider_type": "video_note",
+        "reason": {"code": 131051, "message": "Message type is not supported."},
+    }
+    unknown: InboundUnknownDescriptor = {"provider_type": "location"}
+    message: MessageSummaryResponse = {
+        "id": "msg_unsupported",
+        "object": "message",
+        "channel": "whatsapp",
+        "direction": "inbound",
+        "type": "unsupported",
+        "status": "received",
+        "status_reason": None,
+        "environment": "sandbox",
+        "sender": phone_less,
+        "recipient": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "provider": "meta",
+        "provider_message_id": "wamid_123",
+        "template_name": None,
+        "template_id": None,
+        "template_version_id": None,
+        "template_version": None,
+        "media": None,
+        "unsupported": unsupported,
+        "unknown": None,
+        "payload": None,
+        "metadata": None,
+        "error_code": None,
+        "error_message": None,
+        "provider_error": None,
+        "trace_id": "trc_123",
+        "created_at": "2026-08-10T12:00:00Z",
+        "updated_at": "2026-08-10T12:00:00Z",
+        "redacted_at": None,
+        "delivery_unconfirmed_at": None,
+    }
+    media_asset: MediaAssetResponse = {
+        "id": "mda_consumed",
+        "object": "media_asset",
+        "source": "inbound_provider",
+        "provider": "meta",
+        "provider_media_id": "media_123",
+        "kind": "audio",
+        "lifecycle": "single_use",
+        "filename": None,
+        "mime_type": "audio/ogg",
+        "byte_length": 12,
+        "status": "consumed",
+        "download": consumed["download"],
+        "expires_at": None,
+        "upload_expires_at": "2026-08-10T12:00:00Z",
+        "completed_at": "2026-08-10T12:00:00Z",
+        "consumed_at": "2026-08-10T12:00:00Z",
+        "consumed_by_message_id": "msg_123",
+        "deleted_at": None,
+        "failure_code": None,
+        "failure_message": None,
+        "trace_id": "trc_123",
+        "created_at": "2026-08-10T12:00:00Z",
+        "updated_at": "2026-08-10T12:00:00Z",
+    }
+
+    assert_type(failed["failure"], InboundMessageMediaFailure)
+    assert_type(unknown["provider_type"], str | None)
+    a2_response_shapes(message, consumed, media_asset)
 
 
 def provider_credential_setup_result_narrowing(

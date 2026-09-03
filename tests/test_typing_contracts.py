@@ -118,3 +118,89 @@ invalid_stt_completion: ProviderCredentialSetupSessionCompletedOpenAISttResult =
     assert "payment_settings" in output
     assert "failure" in output
     assert "completed_tts_provider" in output
+
+
+def test_message_media_a2_invalid_shapes_are_rejected(tmp_path: Path) -> None:
+    fixture = tmp_path / "invalid_a2_message_media_types.py"
+    fixture.write_text(
+        """\
+from tyxter.types import (
+    CreateMessageRequest,
+    InboundMessageMediaConsumed,
+    InboundUnknownDescriptor,
+    InboundUnsupportedDescriptor,
+    InstagramMediaMessageInput,
+)
+
+invalid_instagram_voice: InstagramMediaMessageInput = {
+    "account_id": "ig_123",
+    "user_id": "igsid_456",
+    "media": {"kind": "audio", "voice": True},
+}
+
+none_sender_id: CreateMessageRequest = {
+    "channel": "whatsapp",
+    "sender": {"type": "whatsapp_phone_number", "id": None},
+    "recipient": {"type": "phone_e164", "id": "+15555550100"},
+    "message": {"type": "text", "text": {"body": "hello"}},
+}
+
+none_recipient_id: CreateMessageRequest = {
+    "channel": "whatsapp",
+    "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+    "recipient": {"type": "phone_e164", "id": None},
+    "message": {"type": "text", "text": {"body": "hello"}},
+}
+
+missing_sender: CreateMessageRequest = {
+    "channel": "whatsapp",
+    "recipient": {"type": "phone_e164", "id": "+15555550100"},
+    "message": {"type": "text", "text": {"body": "hello"}},
+}
+
+missing_recipient: CreateMessageRequest = {
+    "channel": "whatsapp",
+    "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+    "message": {"type": "text", "text": {"body": "hello"}},
+}
+
+missing_consumed_download: InboundMessageMediaConsumed = {
+    "asset_id": "mda_123",
+    "kind": "audio",
+    "mime_type": "audio/ogg",
+    "byte_length": 12,
+    "filename": None,
+    "status": "consumed",
+}
+
+missing_unsupported_fields: InboundUnsupportedDescriptor = {}
+missing_unknown_provider_type: InboundUnknownDescriptor = {}
+""",
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    source_path = str(PACKAGE_ROOT / "src")
+    environment["MYPYPATH"] = (
+        source_path
+        if not environment.get("MYPYPATH")
+        else os.pathsep.join((source_path, environment["MYPYPATH"]))
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "mypy", "--strict", str(fixture)],
+        cwd=PACKAGE_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert 'Extra key "voice"' in output
+    assert 'Missing key "sender"' in output
+    assert 'Missing key "recipient"' in output
+    assert 'Missing key "download"' in output
+    assert "provider_type" in output
+    assert "reason" in output
+    assert output.count("error:") >= 8

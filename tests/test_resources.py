@@ -8,7 +8,12 @@ import httpx
 import pytest
 
 from tyxter import Tyxter, TyxterAPIError
-from tyxter.types import InteractiveMessagePayload, NativePixOrderDetailsMessagePayload
+from tyxter.types import (
+    CreateMessageRequest,
+    InteractiveMessagePayload,
+    NativePixOrderDetailsMessagePayload,
+    SendMediaMessageInput,
+)
 
 
 def make_client() -> tuple[Tyxter, list[httpx.Request]]:
@@ -128,6 +133,89 @@ def test_messages_get_escapes_message_id() -> None:
         method="POST",
         url="https://api.test/v1/messages/msg%2F123/cancel",
     )
+
+
+def test_message_reads_preserve_phone_less_and_unsupported_unknown_descriptors() -> None:
+    seen: list[httpx.Request] = []
+    common: dict[str, object] = {
+        "object": "message",
+        "channel": "whatsapp",
+        "direction": "inbound",
+        "status": "received",
+        "status_reason": None,
+        "environment": "sandbox",
+        "sender": {"type": "phone_e164", "id": ""},
+        "recipient": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "provider": "meta",
+        "provider_message_id": "wamid_123",
+        "template_name": None,
+        "template_id": None,
+        "template_version_id": None,
+        "template_version": None,
+        "media": None,
+        "payload": None,
+        "metadata": None,
+        "error_code": None,
+        "error_message": None,
+        "provider_error": None,
+        "trace_id": "trc_123",
+        "created_at": "2026-08-10T12:00:00Z",
+        "updated_at": "2026-08-10T12:00:00Z",
+        "redacted_at": None,
+        "delivery_unconfirmed_at": None,
+        "events": [],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path.endswith("msg_unsupported"):
+            return httpx.Response(
+                200,
+                json={
+                    **common,
+                    "id": "msg_unsupported",
+                    "type": "unsupported",
+                    "unsupported": {
+                        "provider_type": "video_note",
+                        "reason": {"code": 131051, "message": "Message type is not supported."},
+                    },
+                    "unknown": None,
+                },
+            )
+        if request.url.path.endswith("msg_unknown"):
+            return httpx.Response(
+                200,
+                json={
+                    **common,
+                    "id": "msg_unknown",
+                    "type": "unknown",
+                    "unsupported": None,
+                    "unknown": {"provider_type": "location"},
+                },
+            )
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    unsupported = client.messages.retrieve("msg_unsupported")
+    unknown = client.messages.retrieve("msg_unknown")
+
+    assert unsupported["sender"] == {"type": "phone_e164", "id": ""}
+    assert unsupported["unsupported"] == {
+        "provider_type": "video_note",
+        "reason": {"code": 131051, "message": "Message type is not supported."},
+    }
+    assert unsupported["unknown"] is None
+    assert unknown["unsupported"] is None
+    assert unknown["unknown"] == {"provider_type": "location"}
+    assert [request.url.path for request in seen] == [
+        "/v1/messages/msg_unsupported",
+        "/v1/messages/msg_unknown",
+    ]
 
 
 def test_messages_transcription_and_typing_use_encoded_paths_and_trace_headers() -> None:
@@ -311,6 +399,34 @@ def test_interactive_message_payload_remains_runtime_callable() -> None:
     )
 
     assert payload["type"] == "button"
+
+
+def test_generic_message_input_typed_dicts_remain_runtime_callable() -> None:
+    request = CreateMessageRequest(
+        channel="whatsapp",
+        sender={"type": "whatsapp_phone_number", "id": "pn_123"},
+        recipient={"type": "phone_e164", "id": "+15555550100"},
+        message={"type": "text", "text": {"body": "hello"}},
+    )
+    media_input = SendMediaMessageInput(
+        channel="whatsapp",
+        sender={"type": "whatsapp_phone_number", "id": "pn_123"},
+        recipient={"type": "phone_e164", "id": "+15555550100"},
+        media={"kind": "audio", "voice": False},
+    )
+
+    assert request == {
+        "channel": "whatsapp",
+        "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "recipient": {"type": "phone_e164", "id": "+15555550100"},
+        "message": {"type": "text", "text": {"body": "hello"}},
+    }
+    assert media_input == {
+        "channel": "whatsapp",
+        "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "recipient": {"type": "phone_e164", "id": "+15555550100"},
+        "media": {"kind": "audio", "voice": False},
+    }
 
 
 def test_batches_resource_paths_and_payloads() -> None:
