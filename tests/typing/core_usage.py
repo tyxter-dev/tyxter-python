@@ -8,6 +8,7 @@ from tyxter.types import (
     CreateApiKeyResponse,
     CreateMessageRequest,
     CreateProjectRequest,
+    ErrorDiscoveryPointer,
     InboundMessageMediaConsumed,
     InboundMessageMediaDescriptor,
     InboundMessageMediaFailed,
@@ -27,6 +28,13 @@ from tyxter.types import (
     MessageBatchPacingResponse,
     MessageBatchResponse,
     MessageDetailResponse,
+    MessageMediaTranscribedWebhookData,
+    MessageMediaTranscribedWebhookEnvelope,
+    MessageMediaTranscribedWebhookTranscript,
+    MessageMediaTranscriptionFailedWebhookData,
+    MessageMediaTranscriptionFailedWebhookEnvelope,
+    MessageMediaTranscriptionFailedWebhookTranscript,
+    MessageMediaTranscriptionWebhookEnvelope,
     MessageMediaTranscriptResponse,
     MessageReadSenderIdentity,
     MessageResponse,
@@ -46,6 +54,7 @@ from tyxter.types import (
     SendMediaMessageInput,
     TestWebhookEndpointResponse,
     TypingIndicatorResponse,
+    TyxterErrorBody,
 )
 
 
@@ -322,6 +331,100 @@ def a2_response_shape_fixtures() -> None:
     assert_type(failed["failure"], InboundMessageMediaFailure)
     assert_type(unknown["provider_type"], str | None)
     a2_response_shapes(message, consumed, media_asset)
+
+
+def a3_transcription_webhook_narrowing(event: MessageMediaTranscriptionWebhookEnvelope) -> None:
+    if event["type"] == "message.media_transcribed":
+        assert_type(event, MessageMediaTranscribedWebhookEnvelope)
+        assert_type(event["data"], MessageMediaTranscribedWebhookData)
+        assert_type(event["data"]["transcript"], MessageMediaTranscribedWebhookTranscript)
+        assert_type(event["data"]["transcript"]["provider"], str)
+        assert_type(event["data"]["transcript"]["duration_seconds"], int)
+    else:
+        assert_type(event, MessageMediaTranscriptionFailedWebhookEnvelope)
+        assert_type(event["data"], MessageMediaTranscriptionFailedWebhookData)
+        assert_type(event["data"]["transcript"], MessageMediaTranscriptionFailedWebhookTranscript)
+        assert_type(event["data"]["transcript"]["error_code"], str)
+        assert_type(event["data"]["transcript"]["error_message"], str | None)
+
+
+def a3_transcription_webhook_fixtures() -> None:
+    success: MessageMediaTranscribedWebhookEnvelope = {
+        "id": "evt_transcribed",
+        "type": "message.media_transcribed",
+        "created_at": "2026-08-25T12:00:00Z",
+        "environment": "sandbox",
+        "trace_id": "trc_transcribed",
+        "data": {
+            "message_id": "msg_123",
+            "status": "delivered",
+            "channel": "whatsapp",
+            "sender": {"type": "phone_e164", "id": "+15555550100"},
+            "recipient": {"type": "whatsapp_phone_number", "id": "pn_123"},
+            "provider_message_id": "wamid_123",
+            "metadata": None,
+            "transcript": {
+                "id": "mtr_123",
+                "media_asset_id": "mda_123",
+                "status": "succeeded",
+                "provider": "openai",
+                "model": "gpt-4o-transcribe",
+                "language": "pt",
+                "text": "olá",
+                "duration_seconds": 4,
+                "completed_at": "2026-08-25T12:00:04Z",
+            },
+        },
+    }
+    failure: MessageMediaTranscriptionFailedWebhookEnvelope = {
+        "id": "evt_failed",
+        "type": "message.media_transcription_failed",
+        "created_at": "2026-08-25T12:00:00Z",
+        "occurred_at": "2026-08-25T12:00:04Z",
+        "environment": "production",
+        "trace_id": "trc_failed",
+        "data": {
+            "message_id": "msg_456",
+            "status": "failed",
+            "channel": "instagram",
+            "sender": {"type": "instagram_user", "id": "ig_1"},
+            "recipient": {"type": "instagram_account", "id": "ig_business_1"},
+            "provider_message_id": None,
+            "metadata": None,
+            "transcript": {
+                "id": "mtr_456",
+                "media_asset_id": "mda_456",
+                "status": "failed",
+                "error_code": "transcription_failed",
+                "error_message": "Provider rejected the media.",
+                "language": None,
+                "completed_at": "2026-08-25T12:00:04Z",
+            },
+        },
+    }
+
+    a3_transcription_webhook_narrowing(success)
+    a3_transcription_webhook_narrowing(failure)
+
+
+def a3_error_discovery_shape(error: TyxterErrorBody) -> None:
+    if "discovery" in error:
+        assert_type(error["discovery"], ErrorDiscoveryPointer)
+
+
+def a3_error_discovery_fixture() -> TyxterErrorBody:
+    discovery = ErrorDiscoveryPointer(
+        openapi="/openapi.json",
+        well_known="/.well-known/tyxter.json",
+    )
+    error = TyxterErrorBody(
+        type="not_found",
+        code="route_not_found",
+        message="No route matches GET /v1/does-not-exist.",
+        discovery=discovery,
+    )
+    a3_error_discovery_shape(error)
+    return error
 
 
 def provider_credential_setup_result_narrowing(

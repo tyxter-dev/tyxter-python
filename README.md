@@ -142,6 +142,11 @@ unavailable. If the API returns `transcription_retry_rate_limited`, wait its
 `retry_after_ms` value and replay the same logical retry command with the same
 key. Use a fresh key only for a distinct retry command.
 
+Subscribe to both terminal events: `message.media_transcribed` and
+`message.media_transcription_failed`. The success event carries the transcript's
+speech, provider, model, and duration; the failure event is failure-safe and
+carries its stable `error_code` without those success-only fields.
+
 ```python
 client.messages.retry_transcription(
     "msg_123",
@@ -268,7 +273,10 @@ except TyxterConnectionError as error:
 ```
 
 `TyxterAPIError.body` preserves the original response. Internal errors may also
-include `error.feedback`, which points to the public feedback endpoint.
+include `error.feedback`, which points to the public feedback endpoint. A
+`route_not_found` response may instead include `error.discovery`, whose
+`openapi` and `well_known` relative paths describe the API host; read it from
+the raw body rather than expecting a separate exception attribute.
 
 ## Webhook verification
 

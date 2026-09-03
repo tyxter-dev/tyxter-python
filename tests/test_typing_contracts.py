@@ -204,3 +204,61 @@ missing_unknown_provider_type: InboundUnknownDescriptor = {}
     assert "provider_type" in output
     assert "reason" in output
     assert output.count("error:") >= 8
+
+
+def test_transcription_webhook_cross_variant_fields_are_rejected(tmp_path: Path) -> None:
+    fixture = tmp_path / "invalid_a3_transcription_webhook_types.py"
+    fixture.write_text(
+        """\\
+from tyxter.types import (
+    MessageMediaTranscribedWebhookTranscript,
+    MessageMediaTranscriptionFailedWebhookTranscript,
+)
+
+invalid_success: MessageMediaTranscribedWebhookTranscript = {
+    "id": "mtr_123",
+    "media_asset_id": "mda_123",
+    "status": "succeeded",
+    "provider": "openai",
+    "model": "gpt-4o-transcribe",
+    "language": "pt",
+    "text": "olá",
+    "duration_seconds": 4,
+    "completed_at": "2026-08-25T12:00:04Z",
+    "error_code": "transcription_failed",
+}
+
+invalid_failure: MessageMediaTranscriptionFailedWebhookTranscript = {
+    "id": "mtr_456",
+    "media_asset_id": "mda_456",
+    "status": "failed",
+    "error_code": "transcription_failed",
+    "error_message": None,
+    "language": None,
+    "completed_at": "2026-08-25T12:00:04Z",
+    "provider": "openai",
+}
+""",
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    source_path = str(PACKAGE_ROOT / "src")
+    environment["MYPYPATH"] = (
+        source_path
+        if not environment.get("MYPYPATH")
+        else os.pathsep.join((source_path, environment["MYPYPATH"]))
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "mypy", "--strict", str(fixture)],
+        cwd=PACKAGE_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert 'Extra key "error_code"' in output
+    assert 'Extra key "provider"' in output

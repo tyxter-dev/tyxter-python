@@ -1,11 +1,37 @@
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from tyxter import WebhookSignatureVerifier, sign_webhook, verify_webhook_signature
 
 SECRET = "wh_secret_abcdef"
 TIMESTAMP = "1714123456"
 BODY = '{"type":"message.sent","id":"msg_1"}'
 SIGNATURE = "f0754d8d0c9d40377677808b0a73c05ee2e52128e6b0060bd7a5c888650c2921"
+TRANSCRIBED_WEBHOOK_BODY = (
+    '{"id":"evt_transcribed","type":"message.media_transcribed",'
+    '"created_at":"2026-08-25T12:00:00Z","environment":"sandbox",'
+    '"trace_id":"trc_transcribed","data":{"message_id":"msg_123","status":"delivered",'
+    '"channel":"whatsapp","sender":{"type":"phone_e164","id":"+15555550100"},'
+    '"recipient":{"type":"whatsapp_phone_number","id":"pn_123"},'
+    '"provider_message_id":"wamid_123","metadata":null,"transcript":{"id":"mtr_123",'
+    '"media_asset_id":"mda_123","status":"succeeded","provider":"openai",'
+    '"model":"gpt-4o-transcribe","language":"pt","text":"olá",'
+    '"duration_seconds":4,"completed_at":"2026-08-25T12:00:04Z"}}}'
+)
+TRANSCRIPTION_FAILED_WEBHOOK_BODY = (
+    '{"id":"evt_failed","type":"message.media_transcription_failed",'
+    '"created_at":"2026-08-25T12:00:00Z","occurred_at":"2026-08-25T12:00:04Z",'
+    '"environment":"production","trace_id":"trc_failed","data":{"message_id":"msg_456",'
+    '"status":"failed","channel":"instagram","sender":{"type":"instagram_user","id":"ig_1"},'
+    '"recipient":{"type":"instagram_account","id":"ig_business_1"},'
+    '"provider_message_id":null,"metadata":null,"transcript":{"id":"mtr_456",'
+    '"media_asset_id":"mda_456","status":"failed","error_code":"transcription_failed",'
+    '"error_message":"Provider rejected the media.","language":null,'
+    '"completed_at":"2026-08-25T12:00:04Z"}}}'
+)
 
 
 def test_sign_webhook_matches_platform_crypto_vector() -> None:
@@ -38,6 +64,53 @@ def test_verify_webhook_signature_rejects_tampering() -> None:
         timestamp=TIMESTAMP,
         raw_body=f"{BODY}!",
         signature=SIGNATURE,
+        now=int(TIMESTAMP),
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw_body", "event_type", "transcript_status"),
+    [
+        (TRANSCRIBED_WEBHOOK_BODY, "message.media_transcribed", "succeeded"),
+        (
+            TRANSCRIPTION_FAILED_WEBHOOK_BODY,
+            "message.media_transcription_failed",
+            "failed",
+        ),
+    ],
+)
+def test_transcription_webhook_json_fixtures_verify_as_opaque_raw_bodies(
+    raw_body: str,
+    event_type: str,
+    transcript_status: str,
+) -> None:
+    signature = sign_webhook(SECRET, TIMESTAMP, raw_body)
+    verifier = WebhookSignatureVerifier(SECRET)
+
+    parsed = json.loads(raw_body)
+    assert parsed["type"] == event_type
+    assert parsed["data"]["transcript"]["status"] == transcript_status
+    assert verify_webhook_signature(
+        secret=SECRET,
+        timestamp=TIMESTAMP,
+        raw_body=raw_body,
+        signature=signature,
+        now=int(TIMESTAMP),
+    )
+    assert verifier.verify(
+        raw_body=raw_body,
+        headers={
+            "tyxter-webhook-timestamp": TIMESTAMP,
+            "tyxter-webhook-signature": signature,
+        },
+        now=int(TIMESTAMP),
+    )
+    assert not verifier.verify(
+        raw_body=f"{raw_body} ",
+        headers={
+            "tyxter-webhook-timestamp": TIMESTAMP,
+            "tyxter-webhook-signature": signature,
+        },
         now=int(TIMESTAMP),
     )
 

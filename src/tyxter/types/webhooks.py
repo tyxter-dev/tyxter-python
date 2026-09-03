@@ -71,3 +71,82 @@ class TestWebhookEndpointResponse(TypedDict):
 class DeleteWebhookEndpointResponse(TypedDict):
     id: str
     deleted: bool
+
+
+MessageMediaTranscriptionWebhookEventType: TypeAlias = Literal[
+    "message.media_transcribed", "message.media_transcription_failed"
+]
+
+
+class MessageWebhookIdentity(TypedDict):
+    type: str
+    id: str
+
+
+class MessageWebhookData(TypedDict):
+    message_id: str
+    status: str
+    channel: Literal["whatsapp", "instagram"]
+    sender: MessageWebhookIdentity
+    recipient: MessageWebhookIdentity
+    provider_message_id: str | None
+    metadata: object | None
+
+
+class MessageMediaTranscribedWebhookTranscript(TypedDict):
+    id: str
+    media_asset_id: str
+    status: Literal["succeeded"]
+    provider: str
+    model: str
+    language: str | None
+    text: str | None
+    duration_seconds: int
+    completed_at: str
+
+
+class MessageMediaTranscribedWebhookData(MessageWebhookData):
+    transcript: MessageMediaTranscribedWebhookTranscript
+
+
+class _WebhookEventEnvelope(TypedDict):
+    id: str
+    created_at: str
+    occurred_at: NotRequired[str]
+    environment: Environment
+    trace_id: str
+
+
+class MessageMediaTranscribedWebhookEnvelope(_WebhookEventEnvelope):
+    type: Literal["message.media_transcribed"]
+    data: MessageMediaTranscribedWebhookData
+
+
+class MessageMediaTranscriptionFailedWebhookTranscript(TypedDict):
+    id: str
+    media_asset_id: str
+    status: Literal["failed"]
+    error_code: str
+    error_message: str | None
+    language: str | None
+    completed_at: str
+
+
+class MessageMediaTranscriptionFailedWebhookData(MessageWebhookData):
+    transcript: MessageMediaTranscriptionFailedWebhookTranscript
+
+
+class MessageMediaTranscriptionFailedWebhookEnvelope(_WebhookEventEnvelope):
+    type: Literal["message.media_transcription_failed"]
+    data: MessageMediaTranscriptionFailedWebhookData
+
+
+MessageMediaTranscriptionWebhookTranscript: TypeAlias = (
+    MessageMediaTranscribedWebhookTranscript | MessageMediaTranscriptionFailedWebhookTranscript
+)
+MessageMediaTranscriptionWebhookData: TypeAlias = (
+    MessageMediaTranscribedWebhookData | MessageMediaTranscriptionFailedWebhookData
+)
+MessageMediaTranscriptionWebhookEnvelope: TypeAlias = (
+    MessageMediaTranscribedWebhookEnvelope | MessageMediaTranscriptionFailedWebhookEnvelope
+)
