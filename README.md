@@ -1,22 +1,23 @@
 # Tyxter Python SDK
 
 Typed, synchronous Python client for the Tyxter Messaging API. The package uses
-`httpx`, supports Python 3.10–3.13, and covers every SDK-callable route in the
-public launch manifest.
+`httpx`, supports Python 3.10–3.13, and tracks the canonical public launch
+manifest.
 
 The SDK is alpha software. Additive response fields are compatible and are
 tolerated at runtime. Removing or renaming a public method, field, or stable
 `error.code` requires a deprecation cycle.
 
-The `0.6.0` source line is a draft candidate. Editing the version or these docs
-does not publish a package, create a tag, or change PyPI state.
+The `0.8.0` source line is a non-publishing source candidate. Editing the
+version or these docs does not publish a package, create a tag, or change PyPI
+state.
 
 ## Install
 
-`pip install tyxter` installs the latest artifact currently published on PyPI.
-It may not include the draft 0.6 APIs documented in this checkout. To evaluate
-the candidate, check out its branch or commit and install that checkout into the
-project environment:
+`pip install tyxter` currently installs the published `0.4.0` artifact, pending
+a separate release decision. It does not include the 0.8 candidate documented
+in this checkout. A source checkout/install evaluates that candidate only; it
+does not publish it:
 
 ```bash
 git clone https://github.com/tyxter-dev/tyxter-python.git
@@ -502,11 +503,15 @@ that hits a route the manifest does not define fails, and a query parameter or
 `Idempotency-Key` mode (`unsupported`, `supported`, or `required`) that drifts
 from the contract fails.
 
-The current source is a draft candidate covering **179 of 181** manifest rows.
-The two reviewed shared exemptions are `PUT` and
-`GET /v1/media/blobs/:token`: each uses its signed capability token as the sole
-authority and is intentionally not a bearer-authenticated SDK method. This count
-is source-conformance evidence, not a publication claim.
+The current manifest at `ed49c514b74a59de3b238d4ebc157f20482b6171` classifies
+all **181** rows: **179** have typed SDK routes, while `PUT` and
+`GET /v1/media/blobs/:token` are the two reviewed capability-token exemptions.
+Those operations use the signed capability token as their sole authority; they
+are not bearer-authenticated SDK routes. This current-manifest count includes
+the two post-tag phone-renewal reads, which remain Unreleased; the published
+`sdk-js-v0.8.0` tag scope is separately pinned at
+`58524926a1fa9498bcfe3abb9d7aa8fd39be1e85`. The count is source-conformance
+evidence, not a publication claim.
 
 **Do not hand-edit these files to make a test pass.** They are generated in the
 Tyxter Messaging repo, where they are verified against the mounted `v1`
