@@ -20,7 +20,7 @@ PhoneNumberStatus: TypeAlias = Literal[
 ]
 PhoneQualityRating: TypeAlias = Literal["green", "yellow", "red", "unknown"]
 PhoneMessagingTier: TypeAlias = Literal[
-    "tier_50", "tier_250", "tier_1k", "tier_10k", "tier_100k", "unlimited", "unknown"
+    "tier_50", "tier_250", "tier_1k", "tier_2k", "tier_10k", "tier_100k", "unlimited", "unknown"
 ]
 MetaThroughputTier: TypeAlias = Literal["1", "2", "3", "4", "unlimited"]
 
@@ -61,6 +61,19 @@ PhoneNumberRecentMessageResponse = TypedDict(
 )
 
 
+class PhoneNumberNameReviewResponse(TypedDict):
+    requested_name: str | None
+    decision: str
+    reason: str | None
+    reviewed_at: str
+
+
+class PhoneNumberPendingNameReviewResponse(TypedDict):
+    requested_name: str | None
+    status: str | None
+    observed_at: str
+
+
 class PhoneNumberResponse(TypedDict):
     id: str
     object: Literal["phone_number"]
@@ -78,6 +91,9 @@ class PhoneNumberResponse(TypedDict):
     messaging_limit_tier: str | None
     meta_throughput_tier: MetaThroughputTier | None
     meta_quality_rating: str | None
+    verified_name: NotRequired[str | None]
+    pending_name_review: NotRequired[PhoneNumberPendingNameReviewResponse | None]
+    name_review: NotRequired[PhoneNumberNameReviewResponse | None]
     # When the Meta-reported health above was last read from Meta. ``None``
     # means it has never been read yet; an older timestamp means those fields
     # are as of that moment, since a failed refresh leaves both the values and

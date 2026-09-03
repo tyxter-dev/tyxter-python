@@ -32,6 +32,7 @@ from .resources import (
     MetaSignupSessionsResource,
     PaymentsResource,
     PhoneNumbersResource,
+    ProjectsResource,
     ProviderConnectionsResource,
     ProviderCredentialSetupSessionsResource,
     RateCardsResource,
@@ -94,6 +95,7 @@ class Tyxter:
         self.payments = PaymentsResource(self)
         self.billing = BillingResource(self)
         self.phone_numbers = PhoneNumbersResource(self)
+        self.projects = ProjectsResource(self)
         self.provider_connections = ProviderConnectionsResource(self)
         self.provider_credential_setup_sessions = ProviderCredentialSetupSessionsResource(self)
         self.rate_cards = RateCardsResource(self)

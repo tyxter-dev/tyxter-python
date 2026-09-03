@@ -9,6 +9,27 @@ from .common import JSONObject
 ThroughputTier: TypeAlias = Literal["starter", "growth", "scale"]
 SubscriptionBillingRail: TypeAlias = Literal["stripe_card", "pix_annual"]
 BillingPackageStatus: TypeAlias = Literal["pending", "succeeded", "failed", "refunded", "expired"]
+PhoneRenewalStatus: TypeAlias = Literal[
+    "scheduled",
+    "funding_required",
+    "funded",
+    "renewed",
+    "release_requested",
+    "released",
+    "cancelled",
+]
+PhoneRenewalActionableState: TypeAlias = Literal[
+    "upcoming",
+    "at_risk",
+    "funded",
+    "renewed",
+    "release_pending",
+    "released",
+    "cancelled",
+]
+PhoneRenewalRecommendedAction: TypeAlias = Literal[
+    "none", "add_credit_or_enable_auto_topup", "monitor_release"
+]
 
 
 class CreditBalanceResponse(TypedDict):
@@ -115,19 +136,22 @@ class PurchaseBillingPackageRequest(TypedDict):
     payment_method: Literal["pix", "card"]
 
 
+TopupPaymentMethodKind: TypeAlias = Literal["pix", "card", "x402", "manual", "promotion"]
+
+
 class TopupResponse(TypedDict):
     id: str
     object: Literal["credit_topup"]
     kind: Literal["cash", "package", "x402"]
     status: BillingPackageStatus
     amount_brl: str
-    payment_method: Literal["pix", "card", "x402"]
+    payment_method: TopupPaymentMethodKind
     package_code: str | None
     quota_messages: int | None
     quota_remaining: int | None
     stripe_payment_intent_id: str | None
     stripe_client_secret: str | None
-    provider: NotRequired[Literal["stripe", "abacate_pay"]]
+    provider: NotRequired[Literal["stripe", "abacate_pay", "manual", "promotion"]]
     abacate_charge_id: NotRequired[str | None]
     pix_copy_paste: NotRequired[str | None]
     pix_qr_code_base64: NotRequired[str | None]
@@ -183,6 +207,39 @@ UpdateAutoTopupConfigRequest: TypeAlias = JSONObject
 class ListLedgerEntriesResponse(TypedDict):
     object: Literal["list"]
     data: list[JSONObject]
+    has_more: bool
+    next_cursor: str | None
+
+
+class PhoneRenewalResponse(TypedDict):
+    id: str
+    object: Literal["phone_renewal"]
+    status: PhoneRenewalStatus
+    actionable_state: PhoneRenewalActionableState
+    recommended_action: PhoneRenewalRecommendedAction
+    phone_number_id: str
+    display_name: str | None
+    phone: str | None
+    period_start: str
+    period_end: str
+    amount_brl: str
+    currency: Literal["brl"]
+    upcoming_notice_at: str | None
+    funding_scheduled_at: str | None
+    funding_attempted_at: str | None
+    next_funding_attempt_at: str | None
+    funded_at: str | None
+    release_cutoff_at: str | None
+    release_requested_at: str | None
+    renewed_at: str | None
+    released_at: str | None
+    cancelled_at: str | None
+    terminal_at: str | None
+
+
+class ListPhoneRenewalsResponse(TypedDict):
+    object: Literal["list"]
+    data: list[PhoneRenewalResponse]
     has_more: bool
     next_cursor: str | None
 

@@ -16,7 +16,10 @@ from tyxter.types import (
     ListBillingPaymentMethodsResponse,
     ListInvoicesResponse,
     ListLedgerEntriesResponse,
+    ListPhoneRenewalsResponse,
     ListPlansResponse,
+    PhoneRenewalResponse,
+    PhoneRenewalStatus,
     PurchaseBillingPackageRequest,
     SaveBillingPaymentMethodRequest,
     SubscribePlanRequest,
@@ -219,6 +222,31 @@ class BillingResource(Resource):
                     "starting_after": starting_after,
                     "project_id": project_id,
                 },
+            ),
+        )
+
+    def list_phone_renewals(
+        self,
+        *,
+        limit: int | None = None,
+        starting_after: str | None = None,
+        status: PhoneRenewalStatus | None = None,
+    ) -> ListPhoneRenewalsResponse:
+        return cast(
+            ListPhoneRenewalsResponse,
+            self._request(
+                "GET",
+                "/v1/billing/phone-renewals",
+                params={"limit": limit, "starting_after": starting_after, "status": status},
+            ),
+        )
+
+    def retrieve_phone_renewal(self, cycle_id: str) -> PhoneRenewalResponse:
+        return cast(
+            PhoneRenewalResponse,
+            self._request(
+                "GET",
+                f"/v1/billing/phone-renewals/{path_id('cycle_id', cycle_id)}",
             ),
         )
 

@@ -4,7 +4,7 @@ from typing import Literal, TypeAlias
 
 from typing_extensions import NotRequired, TypedDict
 
-from .messages import MediaKind
+from .messages import MediaDownloadHint, MediaKind
 
 MediaLifecycle: TypeAlias = Literal["single_use", "library"]
 MediaStatus: TypeAlias = Literal["pending", "ready", "consumed", "failed", "expired", "deleted"]
@@ -40,6 +40,7 @@ class MediaAssetResponse(TypedDict):
     mime_type: str
     byte_length: int
     status: MediaStatus
+    download: NotRequired[MediaDownloadHint | None]
     expires_at: str | None
     upload_expires_at: str
     completed_at: str | None

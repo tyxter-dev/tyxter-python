@@ -48,6 +48,7 @@ SUPPORTED_RESOURCES = {
     "media",
     "payments",
     "phone_numbers",
+    "projects",
     "provider_connections",
     "rate_cards",
     "sandbox",

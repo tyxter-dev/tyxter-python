@@ -8,6 +8,8 @@ from .common import Environment
 
 ProviderName: TypeAlias = Literal["meta", "iniciador", "abacate_pay"]
 ProviderConnectionStatus: TypeAlias = Literal["pending", "connected", "suspended", "disconnected"]
+ProviderConnectionSendCapability: TypeAlias = Literal["available", "blocked"]
+ProviderConnectionSendBlockCode: TypeAlias = Literal[141006, 141008, 141011]
 ProviderTokenSource: TypeAlias = Literal["manual", "embedded_signup"]
 ProviderConnectionChannel: TypeAlias = Literal[
     "whatsapp", "instagram", "payments", "agentic_payments"
@@ -90,6 +92,13 @@ class ProviderConnectionRestriction(TypedDict):
     remediation: str | None
 
 
+class ProviderConnectionWabaSendCapability(TypedDict):
+    waba_id: str
+    send_capability: ProviderConnectionSendCapability
+    send_block_codes: list[ProviderConnectionSendBlockCode]
+    observed_at: str
+
+
 class ProviderConnectionResponse(TypedDict):
     id: str
     object: Literal["provider_connection"]
@@ -112,6 +121,13 @@ class ProviderConnectionResponse(TypedDict):
     agentic_api_base_url: str | None
     webhook_secret_configured: bool
     suspension_reason: NotRequired[str | None]
+    last_policy_warning_type: NotRequired[str | None]
+    last_policy_warning_at: NotRequired[str | None]
+    send_capability: NotRequired[ProviderConnectionSendCapability | None]
+    send_block_codes: NotRequired[list[ProviderConnectionSendBlockCode] | None]
+    send_capability_observed_at: NotRequired[str | None]
+    waba_send_capabilities: NotRequired[list[ProviderConnectionWabaSendCapability]]
+    waba_ban_date: NotRequired[str | None]
     waba_ban_state: NotRequired[str | None]
     account_review_status: NotRequired[str | None]
     restrictions: NotRequired[list[ProviderConnectionRestriction] | None]

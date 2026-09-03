@@ -1,22 +1,23 @@
 # Tyxter Python SDK
 
 Typed, synchronous Python client for the Tyxter Messaging API. The package uses
-`httpx`, supports Python 3.10–3.13, and covers every SDK-callable route in the
-public launch manifest.
+`httpx`, supports Python 3.10–3.13, and tracks the canonical public launch
+manifest.
 
 The SDK is alpha software. Additive response fields are compatible and are
 tolerated at runtime. Removing or renaming a public method, field, or stable
 `error.code` requires a deprecation cycle.
 
-The `0.6.0` source line is a draft candidate. Editing the version or these docs
-does not publish a package, create a tag, or change PyPI state.
+The `0.8.0` source line is a non-publishing source candidate. Editing the
+version or these docs does not publish a package, create a tag, or change PyPI
+state.
 
 ## Install
 
-`pip install tyxter` installs the latest artifact currently published on PyPI.
-It may not include the draft 0.6 APIs documented in this checkout. To evaluate
-the candidate, check out its branch or commit and install that checkout into the
-project environment:
+`pip install tyxter` currently installs the published `0.4.0` artifact, pending
+a separate release decision. It does not include the 0.8 candidate documented
+in this checkout. A source checkout/install evaluates that candidate only; it
+does not publish it:
 
 ```bash
 git clone https://github.com/tyxter-dev/tyxter-python.git
@@ -142,6 +143,11 @@ unavailable. If the API returns `transcription_retry_rate_limited`, wait its
 `retry_after_ms` value and replay the same logical retry command with the same
 key. Use a fresh key only for a distinct retry command.
 
+Subscribe to both terminal events: `message.media_transcribed` and
+`message.media_transcription_failed`. The success event carries the transcript's
+speech, provider, model, and duration; the failure event is failure-safe and
+carries its stable `error_code` without those success-only fields.
+
 ```python
 client.messages.retry_transcription(
     "msg_123",
@@ -157,7 +163,22 @@ Inbound message reads and lists expose a typed `media` descriptor with the
 Tyxter `mda_*` asset ID. Use `client.media.list(source="inbound_provider")` to
 find imported provider media and `client.media.create_download_url(asset_id)`
 to mint a fresh, short-lived `download_url`; do not assume a previous capability
-URL remains valid.
+URL remains valid. A consumed inbound descriptor also has a `download` hint
+(`{"method": "GET", "path": ...}`); treat it as the API's current download
+affordance rather than a durable provider URL. Failed media carries `failure`,
+while expired and deleted media carry neither a download nor a failure.
+
+For WhatsApp OGG/Opus mono audio, `client.whatsapp.send_media(...)` accepts
+`"voice": True` to request a native voice note; omit it or pass `False` for
+ordinary audio. Instagram media has a separate input shape: ordinary image,
+document, audio, and video sends remain valid, but it deliberately has no
+`voice` field. An inbound WhatsApp sender can be phone-less, represented on
+reads only as `{"type": "phone_e164", "id": ""}`; do not reuse it as an
+outbound recipient. `type == "unsupported"` means the provider withheld the
+content and supplies an `unsupported` descriptor when available, whereas
+`type == "unknown"` means content arrived but has no typed projection yet—read
+its raw `payload` through `retrieve()` or `list(include="payload")` instead of
+treating it as a refusal. A default list row may have `payload` set to `None`.
 
 For a WhatsApp typing indicator, pass the Tyxter message ID from
 `message.received.data.message_id`. The webhook envelope's top-level `id` is the
@@ -185,7 +206,7 @@ python examples/sandbox_send_and_verify.py
 
 The client exposes snake-case resource namespaces:
 
-- `account`, `api_keys`, `ai_agents`, `agentic_payments`, and `audiences`
+- `account`, `api_keys`, `ai_agents`, `agentic_payments`, `audiences`, and `projects`
 - `automations`, `automation_runs`, and `automation_webhooks`
 - `batches`, `billing`, `contacts`, `data_retention`, `feedback`, `fiscal`,
   and `flows`
@@ -205,6 +226,136 @@ Provider credential setup keeps `create()` and `retrieve()` source-compatible
 with `ProviderCredentialSetupSessionResponse`, including mutable status and
 completion fields. Use `create_result()` or `retrieve_result()` when strict type
 narrowing must distinguish provider-connection, TTS, and STT completion axes.
+
+## Template authoring
+
+Omit `parameter_format` on create or generation to select the compatible `"POSITIONAL"` default.
+On update, omission retains the draft or rejected template's current format; on duplicate, it inherits
+the source template's format. Set `"NAMED"` when BODY values are bound by their parameter names.
+The approved template version, not a send request, determines how its variables are resolved.
+
+```python
+from time import sleep
+
+named_template = client.templates.create(
+    {
+        "name": "order_tracking",
+        "language": "en_US",
+        "category": "utility",
+        "parameter_format": "NAMED",
+        "components": [
+            {
+                "type": "BODY",
+                "text": "Hi {{customer_name}}, order {{order_id}} is ready.",
+                "example": {
+                    "body_text_named_params": [
+                        {"param_name": "customer_name", "example": "Ana"},
+                        {"param_name": "order_id", "example": "ORD-123"},
+                    ]
+                },
+            }
+        ],
+    }
+)
+
+client.templates.submit(named_template["id"])
+approved_template = client.templates.retrieve(named_template["id"])
+while approved_template["status"] == "submitted":
+    sleep(5)  # Use application-appropriate polling/backoff in production.
+    approved_template = client.templates.retrieve(named_template["id"])
+if approved_template["status"] != "approved":
+    raise RuntimeError(f"Template was not approved: {approved_template['status']}")
+
+client.whatsapp.send_template(
+    {
+        "from": "pn_123",
+        "to": "+5511999999999",
+        "name": named_template["name"],
+        "language": named_template["language"],
+        # No send-time parameter_format: the approved version selects NAMED.
+        "variables": {"customer_name": "Ana", "order_id": "ORD-123"},
+    }
+)
+```
+
+Standalone `COPY_CODE` is a marketing coupon button, not an authentication OTP button with
+`{"type": "OTP", "otp_type": "COPY_CODE"}`. Author it without a `text` field; the service
+accepts one nonempty coupon example of at most 20 characters on a marketing template.
+
+```python
+from time import sleep
+
+coupon_template = client.templates.create(
+    {
+        "name": "winter_coupon",
+        "language": "en_US",
+        "category": "marketing",
+        "components": [
+            {"type": "BODY", "text": "Use this coupon at checkout."},
+            {"type": "BUTTONS", "buttons": [{"type": "COPY_CODE", "example": "WINTER25"}]},
+        ],
+    }
+)
+
+client.templates.submit(coupon_template["id"])
+approved_coupon = client.templates.retrieve(coupon_template["id"])
+while approved_coupon["status"] == "submitted":
+    sleep(5)  # Use application-appropriate polling/backoff in production.
+    approved_coupon = client.templates.retrieve(coupon_template["id"])
+if approved_coupon["status"] != "approved":
+    raise RuntimeError(f"Template was not approved: {approved_coupon['status']}")
+
+client.whatsapp.send_template(
+    {
+        "from": "pn_123",
+        "to": "+5511999999999",
+        "name": coupon_template["name"],
+        "language": coupon_template["language"],
+        "components": [
+            {
+                "type": "button",
+                "sub_type": "copy_code",
+                "index": 0,
+                "parameters": [{"type": "coupon_code", "coupon_code": "WINTER25"}],
+            }
+        ],
+    }
+)
+```
+
+`client.batches.create` intentionally does not support this COPY_CODE send shape: its batch
+contract has no per-recipient button-parameter source.
+
+## Phone name-review reads
+
+Phone reads expose three distinct name facts. `display_name` remains the customer-entered value;
+`verified_name` is nullable Meta-verified display-name evidence; and `name_review` is nullable or
+the latest durable review `{requested_name, decision, reason, reviewed_at}`. Its `decision` is an
+open Meta string. `pending_name_review` is separately nullable or
+`{requested_name, status, observed_at}`: `status` is nullable and, when present, an open Meta
+string; `observed_at` shares the freshness fact in `meta_health_synced_at`. Neither a null status
+nor a null pending or durable review block implies approval. SDK list and retrieve reads return
+these API values; they do not trigger a live Meta fetch.
+
+## Provider availability observations
+
+Provider connection availability fields are advisory evidence, not SDK send enforcement. An absent
+or null `send_capability` means there is no trusted observation: it is unknown and establishes
+neither availability nor unavailability. A `blocked` value does not change the connection status or
+block a client send. `send_block_codes`, `waba_send_capabilities`, and
+`waba_ban_date` provide diagnostic Meta observations, including WABA-specific evidence and its
+observed timestamp. Policy-warning strings remain open provider values. A flow's nullable
+`provider_missing_since` is an observation: null means the provider resolves or has never been
+checked, while a timestamp is the first reconciliation failure. Verify provider warning and
+scheduled-disable webhook envelopes with the existing raw-body signature verifier.
+
+## Promotional credit reads and events
+
+Top-up responses and `credit.topped_up` webhook events can report both `payment_method` and
+`provider` as `"promotion"` for a separately granted campaign bonus. Historical webhook events may
+omit `provider`, which the SDK never infers. There is no campaign, redemption, or promotion-creation
+operation in this SDK. A response `kind` of `"cash"` can coexist with the promotional discriminants;
+it does not establish cash settlement or a provider charge.
 
 ## Pagination
 
@@ -253,7 +404,10 @@ except TyxterConnectionError as error:
 ```
 
 `TyxterAPIError.body` preserves the original response. Internal errors may also
-include `error.feedback`, which points to the public feedback endpoint.
+include `error.feedback`, which points to the public feedback endpoint. A
+`route_not_found` response may instead include `error.discovery`, whose
+`openapi` and `well_known` relative paths describe the API host; read it from
+the raw body rather than expecting a separate exception attribute.
 
 ## Webhook verification
 
@@ -349,11 +503,15 @@ that hits a route the manifest does not define fails, and a query parameter or
 `Idempotency-Key` mode (`unsupported`, `supported`, or `required`) that drifts
 from the contract fails.
 
-The current source is a draft candidate covering **171 of 173** manifest rows.
-The two reviewed shared exemptions are `PUT` and
-`GET /v1/media/blobs/:token`: each uses its signed capability token as the sole
-authority and is intentionally not a bearer-authenticated SDK method. This count
-is source-conformance evidence, not a publication claim.
+The current manifest at `ed49c514b74a59de3b238d4ebc157f20482b6171` classifies
+all **181** rows: **179** have typed SDK routes, while `PUT` and
+`GET /v1/media/blobs/:token` are the two reviewed capability-token exemptions.
+Those operations use the signed capability token as their sole authority; they
+are not bearer-authenticated SDK routes. This current-manifest count includes
+the two post-tag phone-renewal reads, which remain Unreleased; the published
+`sdk-js-v0.8.0` tag scope is separately pinned at
+`58524926a1fa9498bcfe3abb9d7aa8fd39be1e85`. The count is source-conformance
+evidence, not a publication claim.
 
 **Do not hand-edit these files to make a test pass.** They are generated in the
 Tyxter Messaging repo, where they are verified against the mounted `v1`

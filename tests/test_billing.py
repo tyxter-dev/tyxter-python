@@ -75,3 +75,107 @@ def test_billing_covers_manifest_routes_and_headers() -> None:
         for index, request in enumerate(seen)
         if "idempotency-key" in request.headers
     } == expected_idempotency
+
+
+def test_purchase_package_preserves_promotion_response_without_promotion_request() -> None:
+    seen: list[httpx.Request] = []
+    promotion_response = {
+        "id": "topup_promotion_123",
+        "object": "credit_topup",
+        "kind": "cash",
+        "status": "succeeded",
+        "amount_brl": "25.00",
+        "payment_method": "promotion",
+        "package_code": None,
+        "quota_messages": None,
+        "quota_remaining": None,
+        "stripe_payment_intent_id": None,
+        "stripe_client_secret": None,
+        "provider": "promotion",
+        "abacate_charge_id": None,
+        "pix_copy_paste": None,
+        "pix_qr_code_base64": None,
+        "pix_expires_at": None,
+        "created_at": "2026-09-01T10:00:00Z",
+        "completed_at": "2026-09-01T10:00:00Z",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=promotion_response)
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    topup = client.billing.purchase_package(
+        {"package_code": "pkg_10k", "payment_method": "card"},
+        idempotency_key="idem_promotion_response",
+    )
+
+    assert topup == promotion_response
+    assert len(seen) == 1
+    assert seen[0].method == "POST"
+    assert str(seen[0].url) == "https://api.test/v1/billing/packages/purchase"
+    assert seen[0].headers["idempotency-key"] == "idem_promotion_response"
+    assert body(seen[0]) == {"package_code": "pkg_10k", "payment_method": "card"}
+
+
+def test_phone_renewals_use_exact_query_and_encoded_cycle_paths() -> None:
+    seen: list[httpx.Request] = []
+    renewal = {
+        "id": "phr_1",
+        "object": "phone_renewal",
+        "status": "funding_required",
+        "actionable_state": "at_risk",
+        "recommended_action": "add_credit_or_enable_auto_topup",
+        "phone_number_id": "pn_1",
+        "display_name": "Support",
+        "phone": "+5511999999999",
+        "period_start": "2026-09-01T00:00:00Z",
+        "period_end": "2026-10-01T00:00:00Z",
+        "amount_brl": "49.00",
+        "currency": "brl",
+        "upcoming_notice_at": None,
+        "funding_scheduled_at": None,
+        "funding_attempted_at": None,
+        "next_funding_attempt_at": None,
+        "funded_at": None,
+        "release_cutoff_at": None,
+        "release_requested_at": None,
+        "renewed_at": None,
+        "released_at": None,
+        "cancelled_at": None,
+        "terminal_at": None,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/v1/billing/phone-renewals":
+            return httpx.Response(
+                200,
+                json={"object": "list", "data": [renewal], "has_more": False, "next_cursor": None},
+            )
+        return httpx.Response(200, json=renewal)
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    listed = client.billing.list_phone_renewals(
+        limit=5, starting_after="phr_0", status="funding_required"
+    )
+    retrieved = client.billing.retrieve_phone_renewal("phr/1")
+
+    assert listed["data"][0]["recommended_action"] == "add_credit_or_enable_auto_topup"
+    assert retrieved["actionable_state"] == "at_risk"
+    assert str(seen[0].url) == (
+        "https://api.test/v1/billing/phone-renewals?limit=5&starting_after=phr_0&status=funding_required"
+    )
+    assert str(seen[1].url) == "https://api.test/v1/billing/phone-renewals/phr%2F1"
+    assert all("idempotency-key" not in request.headers for request in seen)
+    assert all("tyxter-trace-id" not in request.headers for request in seen)

@@ -127,6 +127,51 @@ def test_raises_typed_api_error_from_tyxter_error_envelope() -> None:
     }
 
 
+def test_route_not_found_preserves_the_discovery_pointer_in_the_raw_error_body() -> None:
+    discovery = {"openapi": "/openapi.json", "well_known": "/.well-known/tyxter.json"}
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            404,
+            json={
+                "error": {
+                    "type": "not_found",
+                    "code": "route_not_found",
+                    "message": "No route matches GET /v1/does-not-exist.",
+                    "request_id": "req_404",
+                    "trace_id": "trc_404",
+                    "discovery": discovery,
+                }
+            },
+        )
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    with pytest.raises(TyxterAPIError) as exc_info:
+        client._request("GET", "/v1/does-not-exist")
+
+    error = exc_info.value
+    assert error.status_code == 404
+    assert error.type == "not_found"
+    assert error.code == "route_not_found"
+    assert error.request_id == "req_404"
+    assert error.trace_id == "trc_404"
+    assert error.body == {
+        "error": {
+            "type": "not_found",
+            "code": "route_not_found",
+            "message": "No route matches GET /v1/does-not-exist.",
+            "request_id": "req_404",
+            "trace_id": "trc_404",
+            "discovery": discovery,
+        }
+    }
+
+
 def test_raises_fallback_api_error_for_non_json_error_response() -> None:
     def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(503, text="temporarily unavailable")

@@ -1,6 +1,8 @@
 import re
 
-from tyxter import Tyxter, __version__
+import httpx
+
+from tyxter import Tyxter, TyxterBootstrap, __version__
 
 # PEP 440: release segment, with optional pre/post/dev suffixes. Asserting the
 # shape rather than a literal keeps this test about "the package exports a
@@ -19,8 +21,42 @@ def test_package_exports_client_and_version() -> None:
     assert client.base_url == "http://localhost:3001"
 
 
-def test_package_source_version_tracks_the_shared_0_6_line() -> None:
-    assert __version__ == "0.6.0"
+def test_package_source_version_tracks_the_shared_0_8_line() -> None:
+    assert __version__ == "0.8.0"
+
+
+def test_both_client_user_agent_paths_derive_from_the_candidate_version() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"status": "pending"})
+
+    client = Tyxter(api_key="tx_sandbox_test")
+    bootstrap = TyxterBootstrap(
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+    try:
+        assert (
+            client._headers(
+                idempotency_key=None,
+                trace_id=None,
+                has_body=False,
+            )["User-Agent"]
+            == "tyxter-python/0.8.0"
+        )
+        bootstrap._request(
+            "POST",
+            "/v1/agent-api-key-device-authorizations",
+            json={},
+            trace_id=None,
+        )
+    finally:
+        client.close()
+        bootstrap.close()
+
+    assert seen[0].headers["user-agent"] == "tyxter-python/0.8.0"
 
 
 def test_client_requires_api_key() -> None:

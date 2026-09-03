@@ -8,7 +8,12 @@ import httpx
 import pytest
 
 from tyxter import Tyxter, TyxterAPIError
-from tyxter.types import InteractiveMessagePayload, NativePixOrderDetailsMessagePayload
+from tyxter.types import (
+    CreateMessageRequest,
+    InteractiveMessagePayload,
+    NativePixOrderDetailsMessagePayload,
+    SendMediaMessageInput,
+)
 
 
 def make_client() -> tuple[Tyxter, list[httpx.Request]]:
@@ -128,6 +133,212 @@ def test_messages_get_escapes_message_id() -> None:
         method="POST",
         url="https://api.test/v1/messages/msg%2F123/cancel",
     )
+
+
+def test_message_reads_preserve_phone_less_and_unsupported_unknown_descriptors() -> None:
+    seen: list[httpx.Request] = []
+    common: dict[str, object] = {
+        "object": "message",
+        "channel": "whatsapp",
+        "direction": "inbound",
+        "status": "received",
+        "status_reason": None,
+        "environment": "sandbox",
+        "sender": {"type": "phone_e164", "id": ""},
+        "recipient": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "provider": "meta",
+        "provider_message_id": "wamid_123",
+        "template_name": None,
+        "template_id": None,
+        "template_version_id": None,
+        "template_version": None,
+        "media": None,
+        "payload": None,
+        "metadata": None,
+        "error_code": None,
+        "error_message": None,
+        "provider_error": None,
+        "trace_id": "trc_123",
+        "created_at": "2026-08-10T12:00:00Z",
+        "updated_at": "2026-08-10T12:00:00Z",
+        "redacted_at": None,
+        "delivery_unconfirmed_at": None,
+        "events": [],
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path.endswith("msg_unsupported"):
+            return httpx.Response(
+                200,
+                json={
+                    **common,
+                    "id": "msg_unsupported",
+                    "type": "unsupported",
+                    "unsupported": {
+                        "provider_type": "video_note",
+                        "reason": {"code": 131051, "message": "Message type is not supported."},
+                    },
+                    "unknown": None,
+                },
+            )
+        if request.url.path.endswith("msg_unknown"):
+            return httpx.Response(
+                200,
+                json={
+                    **common,
+                    "id": "msg_unknown",
+                    "type": "unknown",
+                    "unsupported": None,
+                    "unknown": {"provider_type": "location"},
+                },
+            )
+        if request.url.path.endswith("msg_consumed_media"):
+            return httpx.Response(
+                200,
+                json={
+                    **common,
+                    "id": "msg_consumed_media",
+                    "type": "audio",
+                    "media": {
+                        "asset_id": "mda_123",
+                        "kind": "audio",
+                        "mime_type": "audio/ogg",
+                        "byte_length": 12,
+                        "filename": None,
+                        "status": "consumed",
+                        "download": {"method": "GET", "path": "/v1/media/mda_123/download"},
+                    },
+                    "unsupported": None,
+                    "unknown": None,
+                },
+            )
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    unsupported = client.messages.retrieve("msg_unsupported")
+    unknown = client.messages.retrieve("msg_unknown")
+    consumed_media = client.messages.retrieve("msg_consumed_media")
+
+    assert unsupported["sender"] == {"type": "phone_e164", "id": ""}
+    assert unsupported["unsupported"] == {
+        "provider_type": "video_note",
+        "reason": {"code": 131051, "message": "Message type is not supported."},
+    }
+    assert unsupported["unknown"] is None
+    assert unknown["unsupported"] is None
+    assert unknown["unknown"] == {"provider_type": "location"}
+    assert consumed_media["media"] == {
+        "asset_id": "mda_123",
+        "kind": "audio",
+        "mime_type": "audio/ogg",
+        "byte_length": 12,
+        "filename": None,
+        "status": "consumed",
+        "download": {"method": "GET", "path": "/v1/media/mda_123/download"},
+    }
+    assert [request.url.path for request in seen] == [
+        "/v1/messages/msg_unsupported",
+        "/v1/messages/msg_unknown",
+        "/v1/messages/msg_consumed_media",
+    ]
+
+
+def test_additive_media_and_webhook_response_fields_are_preserved_when_present() -> None:
+    seen: list[httpx.Request] = []
+    download = {"method": "GET", "path": "/v1/media/mda_123/download"}
+    disabled_detail = {"last_status_code": 503, "failure_class": "server_error"}
+    media_asset = {
+        "id": "mda_123",
+        "object": "media_asset",
+        "source": "inbound_provider",
+        "provider": "meta",
+        "provider_media_id": "media_123",
+        "kind": "audio",
+        "lifecycle": "single_use",
+        "filename": None,
+        "mime_type": "audio/ogg",
+        "byte_length": 12,
+        "status": "consumed",
+        "download": download,
+        "expires_at": None,
+        "upload_expires_at": "2026-08-10T12:00:00Z",
+        "completed_at": "2026-08-10T12:00:00Z",
+        "consumed_at": "2026-08-10T12:00:00Z",
+        "consumed_by_message_id": "msg_123",
+        "deleted_at": None,
+        "failure_code": None,
+        "failure_message": None,
+        "trace_id": "trc_123",
+        "created_at": "2026-08-10T12:00:00Z",
+        "updated_at": "2026-08-10T12:00:00Z",
+    }
+    endpoint = {
+        "id": "whe_123",
+        "object": "webhook_endpoint",
+        "url": "https://example.test/webhooks",
+        "description": None,
+        "subscribed_events": ["message.sent"],
+        "status": "disabled",
+        "disabled_reason": "consecutive_failures",
+        "disabled_detail": disabled_detail,
+        "last_failure_at": "2026-08-10T12:00:00Z",
+        "last_success_at": None,
+        "environment": "sandbox",
+        "created_at": "2026-08-10T12:00:00Z",
+        "updated_at": "2026-08-10T12:00:00Z",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.method == "GET" and request.url.path == "/v1/media/mda_123":
+            return httpx.Response(200, json=media_asset)
+        if request.method == "GET" and request.url.path == "/v1/webhook-endpoints/whe_123":
+            return httpx.Response(200, json=endpoint)
+        if request.method == "POST" and request.url.path == "/v1/webhook-endpoints":
+            return httpx.Response(200, json={**endpoint, "signing_secret": "whsec_created"})
+        if (
+            request.method == "POST"
+            and request.url.path == "/v1/webhook-endpoints/whe_123/rotate-signing-secret"
+        ):
+            return httpx.Response(200, json={**endpoint, "signing_secret": "whsec_rotated"})
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    retrieved_media = client.media.retrieve("mda_123")
+    retrieved_endpoint = client.webhook_endpoints.get("whe_123")
+    created_endpoint = client.webhook_endpoints.create(
+        {"url": "https://example.test/webhooks", "subscribed_events": ["message.sent"]}
+    )
+    rotated_endpoint = client.webhook_endpoints.rotate_signing_secret("whe_123")
+
+    assert retrieved_media["download"] == download
+    assert retrieved_endpoint["disabled_detail"] == disabled_detail
+    assert created_endpoint["disabled_detail"] == disabled_detail
+    assert created_endpoint["signing_secret"] == "whsec_created"
+    assert rotated_endpoint["disabled_detail"] == disabled_detail
+    assert rotated_endpoint["signing_secret"] == "whsec_rotated"
+    assert [request.url.path for request in seen] == [
+        "/v1/media/mda_123",
+        "/v1/webhook-endpoints/whe_123",
+        "/v1/webhook-endpoints",
+        "/v1/webhook-endpoints/whe_123/rotate-signing-secret",
+    ]
+    assert request_json(seen[2]) == {
+        "url": "https://example.test/webhooks",
+        "subscribed_events": ["message.sent"],
+    }
+    assert not seen[3].content
 
 
 def test_messages_transcription_and_typing_use_encoded_paths_and_trace_headers() -> None:
@@ -313,6 +524,34 @@ def test_interactive_message_payload_remains_runtime_callable() -> None:
     assert payload["type"] == "button"
 
 
+def test_generic_message_input_typed_dicts_remain_runtime_callable() -> None:
+    request = CreateMessageRequest(
+        channel="whatsapp",
+        sender={"type": "whatsapp_phone_number", "id": "pn_123"},
+        recipient={"type": "phone_e164", "id": "+15555550100"},
+        message={"type": "text", "text": {"body": "hello"}},
+    )
+    media_input = SendMediaMessageInput(
+        channel="whatsapp",
+        sender={"type": "whatsapp_phone_number", "id": "pn_123"},
+        recipient={"type": "phone_e164", "id": "+15555550100"},
+        media={"kind": "audio", "voice": False},
+    )
+
+    assert request == {
+        "channel": "whatsapp",
+        "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "recipient": {"type": "phone_e164", "id": "+15555550100"},
+        "message": {"type": "text", "text": {"body": "hello"}},
+    }
+    assert media_input == {
+        "channel": "whatsapp",
+        "sender": {"type": "whatsapp_phone_number", "id": "pn_123"},
+        "recipient": {"type": "phone_e164", "id": "+15555550100"},
+        "media": {"kind": "audio", "voice": False},
+    }
+
+
 def test_batches_resource_paths_and_payloads() -> None:
     client, seen = make_client()
 
@@ -442,6 +681,37 @@ def test_webhook_endpoints_resource_paths_and_payloads() -> None:
     )
 
 
+def test_webhook_endpoint_test_is_an_empty_body_supported_idempotent_post() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "object": "webhook_test",
+                "webhook_event_id": "wev_1",
+                "webhook_endpoint_id": "whe_1",
+                "status": "pending",
+            },
+        )
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    receipt = client.webhook_endpoints.test("whe/1", idempotency_key="idem_webhook_test")
+
+    assert receipt["status"] == "pending"
+    assert str(seen[0].url) == "https://api.test/v1/webhook-endpoints/whe%2F1/test"
+    assert not seen[0].content
+    assert "content-type" not in seen[0].headers
+    assert seen[0].headers["idempotency-key"] == "idem_webhook_test"
+    assert "tyxter-trace-id" not in seen[0].headers
+
+
 @pytest.mark.parametrize(
     ("call", "message"),
     [
@@ -452,6 +722,10 @@ def test_webhook_endpoints_resource_paths_and_payloads() -> None:
             lambda client: client.webhook_endpoints.get(""),
             "webhook_endpoint_id is required",
         ),
+        (lambda client: client.webhook_endpoints.test(""), "webhook_endpoint_id is required"),
+        (lambda client: client.feedback.get(""), "feedback_report_id is required"),
+        (lambda client: client.projects.retrieve(""), "project_id is required"),
+        (lambda client: client.billing.retrieve_phone_renewal(""), "cycle_id is required"),
     ],
 )
 def test_resource_ids_are_required(call: Callable[[Tyxter], object], message: str) -> None:

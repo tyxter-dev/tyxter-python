@@ -24,6 +24,11 @@ class ErrorFeedbackPointer(TypedDict):
     method: Literal["POST"]
 
 
+class ErrorDiscoveryPointer(TypedDict):
+    openapi: str
+    well_known: str
+
+
 class TyxterErrorBody(TypedDict):
     type: TyxterErrorType
     code: str
@@ -33,6 +38,7 @@ class TyxterErrorBody(TypedDict):
     request_id: NotRequired[str]
     trace_id: NotRequired[str]
     feedback: NotRequired[ErrorFeedbackPointer]
+    discovery: NotRequired[ErrorDiscoveryPointer]
 
 
 class TyxterErrorResponse(TypedDict):

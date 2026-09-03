@@ -7,17 +7,28 @@ from typing_extensions import NotRequired, Required, TypedDict
 from .common import JSONObject
 from .messages import MediaMessagePayload, MessageChannel
 
+
+class SandboxInboundUnsupportedInput(TypedDict):
+    provider_type: NotRequired[str]
+
+
+class SandboxInboundUnknownInput(TypedDict):
+    provider_type: NotRequired[str]
+
+
 InboundSandboxMessageRequest = TypedDict(
     "InboundSandboxMessageRequest",
     {
         "from": Required[str],
         "to": Required[str],
-        "type": Required[Literal["text", "media", "interactive", "flow"]],
+        "type": Required[Literal["text", "media", "interactive", "flow", "unsupported", "unknown"]],
         "channel": NotRequired[MessageChannel],
         "text": NotRequired[dict[Literal["body"], str]],
         "media": NotRequired[MediaMessagePayload],
         "interactive": NotRequired[JSONObject],
         "flow": NotRequired[JSONObject],
+        "unsupported": NotRequired[SandboxInboundUnsupportedInput],
+        "unknown": NotRequired[SandboxInboundUnknownInput],
         "metadata": NotRequired[JSONObject],
     },
     total=False,

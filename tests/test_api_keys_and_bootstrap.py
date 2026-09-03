@@ -26,7 +26,12 @@ def test_api_keys_match_manifest_routes_and_header_capabilities() -> None:
     )
 
     client.api_keys.create(
-        {"name": "Agent", "environment": "sandbox", "scopes": ["messages:write"]},
+        {
+            "name": "Agent",
+            "environment": "sandbox",
+            "project_id": "prj_1",
+            "scopes": ["messages:write"],
+        },
         idempotency_key="idem_key",
     )
     client.api_keys.list(limit=10, starting_after="key_1")
@@ -37,6 +42,7 @@ def test_api_keys_match_manifest_routes_and_header_capabilities() -> None:
 
     assert seen[0].headers["idempotency-key"] == "idem_key"
     assert seen[0].headers["authorization"] == "Bearer tx_sandbox_test"
+    assert body(seen[0])["project_id"] == "prj_1"
     assert seen[1].url.query.decode() == "limit=10&starting_after=key_1"
     assert str(seen[2].url) == "https://api.test/v1/api-keys/key%2F2"
     assert body(seen[3]) == {"name": "Renamed agent"}
