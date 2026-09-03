@@ -6,7 +6,11 @@ from typing import cast
 import httpx
 
 from tyxter import Tyxter
-from tyxter.types import ProviderCredentialSetupSessionResponse, TemplateResponse
+from tyxter.types import (
+    PhoneNumberResponse,
+    ProviderCredentialSetupSessionResponse,
+    TemplateResponse,
+)
 
 
 def body(request: httpx.Request) -> dict[str, object]:
@@ -73,6 +77,41 @@ def make_template_client(seen: list[httpx.Request]) -> Tyxter:
         base_url="https://api.test",
         transport=httpx.MockTransport(handler),
     )
+
+
+def phone_response(**overrides: object) -> dict[str, object]:
+    return {
+        "id": "pn_123",
+        "object": "phone_number",
+        "source": "byon",
+        "status": "active",
+        "environment": "sandbox",
+        "display_name": "Tyxter Support",
+        "ddd": "11",
+        "phone": "+5511999999999",
+        "provider_number_id": None,
+        "meta_phone_number_id": "meta_123",
+        "waba_id": "waba_123",
+        "quality_rating": "unknown",
+        "messaging_tier": "tier_2k",
+        "messaging_limit_tier": "META_FUTURE_LIMIT",
+        "meta_throughput_tier": None,
+        "meta_quality_rating": None,
+        "meta_health_synced_at": "2026-09-01T10:00:00Z",
+        "current_24h_unique_recipients": 12,
+        "remaining_messaging_allowance_estimate": None,
+        "verification_code": None,
+        "verification_code_received_at": None,
+        "monthly_fee_brl": None,
+        "error_code": None,
+        "error_message": None,
+        "created_at": "2026-08-26T12:00:00Z",
+        "updated_at": "2026-09-01T10:00:00Z",
+        "activated_at": "2026-08-26T12:05:00Z",
+        "released_at": None,
+        "recent_messages": [],
+        **overrides,
+    }
 
 
 def test_templates_cover_all_routes_and_only_generate_is_idempotent() -> None:
@@ -348,6 +387,113 @@ def test_phone_numbers_cover_lifecycle_and_escape_ids() -> None:
     assert str(seen[4].url) == "https://api.test/v1/phone-numbers/pn%2F1"
     assert not seen[5].content
     assert seen[7].method == "DELETE"
+
+
+def test_phone_name_review_reads_preserve_future_meta_values() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/v1/phone-numbers":
+            return httpx.Response(
+                200,
+                json={
+                    "object": "list",
+                    "data": [
+                        phone_response(
+                            verified_name="Tyxter Verified",
+                            pending_name_review={
+                                "requested_name": "Tyxter Support",
+                                "status": "META_FUTURE_PENDING",
+                                "observed_at": "2026-09-01T10:00:00Z",
+                            },
+                            name_review=None,
+                        )
+                    ],
+                    "has_more": False,
+                    "next_cursor": None,
+                },
+            )
+        return httpx.Response(
+            200,
+            json=phone_response(
+                verified_name=None,
+                pending_name_review=None,
+                name_review={
+                    "requested_name": None,
+                    "decision": "META_FUTURE_DECISION",
+                    "reason": None,
+                    "reviewed_at": "2026-09-01T11:00:00Z",
+                },
+            ),
+        )
+
+    client = Tyxter(
+        api_key="tx_sandbox_test",
+        base_url="https://api.test",
+        transport=httpx.MockTransport(handler),
+    )
+
+    listed = client.phone_numbers.list()
+    retrieved = client.phone_numbers.retrieve("pn/123")
+
+    assert listed["data"][0]["messaging_tier"] == "tier_2k"
+    assert listed["data"][0]["verified_name"] == "Tyxter Verified"
+    assert listed["data"][0]["pending_name_review"] == {
+        "requested_name": "Tyxter Support",
+        "status": "META_FUTURE_PENDING",
+        "observed_at": "2026-09-01T10:00:00Z",
+    }
+    assert listed["data"][0]["name_review"] is None
+    assert retrieved["verified_name"] is None
+    assert retrieved["pending_name_review"] is None
+    assert retrieved["name_review"] == {
+        "requested_name": None,
+        "decision": "META_FUTURE_DECISION",
+        "reason": None,
+        "reviewed_at": "2026-09-01T11:00:00Z",
+    }
+    assert [request.method for request in seen] == ["GET", "GET"]
+    assert str(seen[0].url) == "https://api.test/v1/phone-numbers"
+    assert str(seen[1].url) == "https://api.test/v1/phone-numbers/pn%2F123"
+
+
+def test_phone_number_response_remains_callable_without_additive_review_fields() -> None:
+    legacy_response = PhoneNumberResponse(
+        id="pn_123",
+        object="phone_number",
+        source="byon",
+        status="active",
+        environment="sandbox",
+        display_name="Tyxter Support",
+        ddd="11",
+        phone="+5511999999999",
+        provider_number_id=None,
+        meta_phone_number_id="meta_123",
+        waba_id="waba_123",
+        quality_rating="unknown",
+        messaging_tier="tier_1k",
+        messaging_limit_tier=None,
+        meta_throughput_tier=None,
+        meta_quality_rating=None,
+        meta_health_synced_at=None,
+        current_24h_unique_recipients=0,
+        remaining_messaging_allowance_estimate=None,
+        verification_code=None,
+        verification_code_received_at=None,
+        monthly_fee_brl=None,
+        error_code=None,
+        error_message=None,
+        created_at="2026-08-26T12:00:00Z",
+        updated_at="2026-08-26T12:00:00Z",
+        activated_at="2026-08-26T12:05:00Z",
+        released_at=None,
+        recent_messages=[],
+    )
+
+    assert "verified_name" not in legacy_response
+    assert "pending_name_review" not in legacy_response
+    assert "name_review" not in legacy_response
 
 
 def test_provider_connections_and_credential_setup_match_header_capabilities() -> None:

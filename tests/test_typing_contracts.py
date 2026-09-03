@@ -260,6 +260,69 @@ invalid_duplicate: DuplicateTemplateRequest = {"parameter_format": "UNSUPPORTED"
     assert output.count("error:") >= 4
 
 
+def test_phone_name_review_invalid_shapes_are_rejected(tmp_path: Path) -> None:
+    fixture = tmp_path / "invalid_a5_phone_name_review_types.py"
+    fixture.write_text(
+        """\\
+from tyxter.types import (
+    PhoneMessagingTier,
+    PhoneNumberNameReviewResponse,
+    PhoneNumberPendingNameReviewResponse,
+)
+
+invalid_tier: PhoneMessagingTier = "tier_3k"
+
+missing_pending_observed_at: PhoneNumberPendingNameReviewResponse = {
+    "requested_name": "Tyxter Support",
+    "status": "META_FUTURE_PENDING",
+}
+
+missing_review_reason: PhoneNumberNameReviewResponse = {
+    "requested_name": "Tyxter Support",
+    "decision": "META_FUTURE_DECISION",
+    "reviewed_at": "2026-09-01T11:00:00Z",
+}
+
+invalid_pending_nullable_values: PhoneNumberPendingNameReviewResponse = {
+    "requested_name": 123,
+    "status": 456,
+    "observed_at": "2026-09-01T10:00:00Z",
+}
+
+invalid_review_nullable_values: PhoneNumberNameReviewResponse = {
+    "requested_name": 123,
+    "decision": "META_FUTURE_DECISION",
+    "reason": 456,
+    "reviewed_at": "2026-09-01T11:00:00Z",
+}
+""",
+        encoding="utf-8",
+    )
+    environment = os.environ.copy()
+    source_path = str(PACKAGE_ROOT / "src")
+    environment["MYPYPATH"] = (
+        source_path
+        if not environment.get("MYPYPATH")
+        else os.pathsep.join((source_path, environment["MYPYPATH"]))
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "mypy", "--strict", str(fixture)],
+        cwd=PACKAGE_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert "tier_3k" in output
+    assert "observed_at" in output
+    assert "reason" in output
+    assert output.count("error:") >= 7
+
+
 def test_transcription_webhook_cross_variant_fields_are_rejected(tmp_path: Path) -> None:
     fixture = tmp_path / "invalid_a3_transcription_webhook_types.py"
     fixture.write_text(

@@ -325,6 +325,17 @@ client.whatsapp.send_template(
 `client.batches.create` intentionally does not support this COPY_CODE send shape: its batch
 contract has no per-recipient button-parameter source.
 
+## Phone name-review reads
+
+Phone reads expose three distinct name facts. `display_name` remains the customer-entered value;
+`verified_name` is nullable Meta-verified display-name evidence; and `name_review` is nullable or
+the latest durable review `{requested_name, decision, reason, reviewed_at}`. Its `decision` is an
+open Meta string. `pending_name_review` is separately nullable or
+`{requested_name, status, observed_at}`: `status` is nullable and, when present, an open Meta
+string; `observed_at` shares the freshness fact in `meta_health_synced_at`. Neither a null status
+nor a null pending or durable review block implies approval. SDK list and retrieve reads return
+these API values; they do not trigger a live Meta fetch.
+
 ## Pagination
 
 List methods return cursor pages. Continue with `next_cursor` only when

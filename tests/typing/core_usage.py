@@ -43,6 +43,9 @@ from tyxter.types import (
     MessageSummaryResponse,
     NativePixOrderDetailsMessagePayload,
     PhoneLessInboundSenderIdentity,
+    PhoneMessagingTier,
+    PhoneNumberNameReviewResponse,
+    PhoneNumberPendingNameReviewResponse,
     PhoneNumberResponse,
     PhoneRenewalResponse,
     ProjectResponse,
@@ -257,6 +260,67 @@ def a4_template_authoring_usage(client: Tyxter) -> None:
     )
     assert_type(legacy_template, TemplateResponse)
     assert_type(legacy_generation, TemplateGenerationResponse)
+
+
+def a5_phone_name_review_usage(client: Tyxter) -> None:
+    tier: PhoneMessagingTier = "tier_2k"
+    pending: PhoneNumberPendingNameReviewResponse = {
+        "requested_name": None,
+        "status": "META_FUTURE_PENDING",
+        "observed_at": "2026-09-01T10:00:00Z",
+    }
+    review: PhoneNumberNameReviewResponse = {
+        "requested_name": "Tyxter Support",
+        "decision": "META_FUTURE_DECISION",
+        "reason": None,
+        "reviewed_at": "2026-09-01T11:00:00Z",
+    }
+    assert_type(tier, PhoneMessagingTier)
+    assert_type(pending["status"], str | None)
+    assert_type(review["decision"], str)
+    assert_type(review["reason"], str | None)
+
+    phone = client.phone_numbers.retrieve("pn_123")
+    assert_type(phone, PhoneNumberResponse)
+    if "verified_name" in phone:
+        assert_type(phone["verified_name"], str | None)
+    if "pending_name_review" in phone:
+        assert_type(phone["pending_name_review"], PhoneNumberPendingNameReviewResponse | None)
+    if "name_review" in phone:
+        assert_type(phone["name_review"], PhoneNumberNameReviewResponse | None)
+
+    legacy_phone = PhoneNumberResponse(
+        id="pn_123",
+        object="phone_number",
+        source="byon",
+        status="active",
+        environment="sandbox",
+        display_name="Tyxter Support",
+        ddd="11",
+        phone="+5511999999999",
+        provider_number_id=None,
+        meta_phone_number_id="meta_123",
+        waba_id="waba_123",
+        quality_rating="unknown",
+        messaging_tier="tier_1k",
+        messaging_limit_tier=None,
+        meta_throughput_tier=None,
+        meta_quality_rating=None,
+        meta_health_synced_at=None,
+        current_24h_unique_recipients=0,
+        remaining_messaging_allowance_estimate=None,
+        verification_code=None,
+        verification_code_received_at=None,
+        monthly_fee_brl=None,
+        error_code=None,
+        error_message=None,
+        created_at="2026-08-26T12:00:00Z",
+        updated_at="2026-08-26T12:00:00Z",
+        activated_at="2026-08-26T12:05:00Z",
+        released_at=None,
+        recent_messages=[],
+    )
+    assert_type(legacy_phone, PhoneNumberResponse)
 
 
 def a2_message_media_contract_usage(client: Tyxter) -> None:
