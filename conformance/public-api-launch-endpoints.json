@@ -26,6 +26,45 @@
     "notes": "Alias of GET /v1/account for agents and clients that look for a whoami-style route."
   },
   {
+    "resource": "projects",
+    "operation": "create",
+    "method": "POST",
+    "path": "/v1/projects",
+    "scope": "projects:write",
+    "request_schema": "CreateProjectRequest",
+    "query_schema": null,
+    "response_schema": "ProjectResponse",
+    "idempotency_key": "supported",
+    "trace_id_header": "none",
+    "notes": "Creates an active project in the API key organization with sandbox and production environments. The optional Idempotency-Key replays the original 201 response for the same request body."
+  },
+  {
+    "resource": "projects",
+    "operation": "list",
+    "method": "GET",
+    "path": "/v1/projects",
+    "scope": "projects:read",
+    "request_schema": null,
+    "query_schema": "ListProjectsQuery",
+    "response_schema": "ListProjectsResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "none",
+    "notes": "Lists active projects in the API key organization using cursor pagination."
+  },
+  {
+    "resource": "projects",
+    "operation": "retrieve",
+    "method": "GET",
+    "path": "/v1/projects/:project_id",
+    "scope": "projects:read",
+    "request_schema": null,
+    "query_schema": null,
+    "response_schema": "ProjectResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "none",
+    "notes": "Retrieves an active project in the API key organization. Missing, archived, and foreign projects return project_not_found."
+  },
+  {
     "resource": "messages",
     "operation": "create",
     "method": "POST",
@@ -297,6 +336,18 @@
   },
   {
     "resource": "webhook_endpoints",
+    "operation": "test",
+    "method": "POST",
+    "path": "/v1/webhook-endpoints/:webhook_endpoint_id/test",
+    "scope": "webhooks:write",
+    "request_schema": null,
+    "query_schema": null,
+    "response_schema": "TestWebhookEndpointResponse",
+    "idempotency_key": "supported",
+    "trace_id_header": "none"
+  },
+  {
+    "resource": "webhook_endpoints",
     "operation": "delete",
     "method": "DELETE",
     "path": "/v1/webhook-endpoints/:webhook_endpoint_id",
@@ -480,7 +531,8 @@
     "query_schema": null,
     "response_schema": "CreateApiKeyResponse",
     "idempotency_key": "supported",
-    "trace_id_header": "none"
+    "trace_id_header": "none",
+    "notes": "API-key subset callers may optionally target an active same-organization project; the server selects its environment matching the caller sandbox/production kind. Scope-subset delegation still applies, and absent, archived, or foreign targets are project_not_found."
   },
   {
     "resource": "api_keys",
@@ -1338,6 +1390,32 @@
   },
   {
     "resource": "billing",
+    "operation": "list_phone_renewals",
+    "method": "GET",
+    "path": "/v1/billing/phone-renewals",
+    "scope": "billing:read",
+    "request_schema": null,
+    "query_schema": "ListPhoneRenewalsQuery",
+    "response_schema": "ListPhoneRenewalsResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "none",
+    "notes": "Lists prepaid phone-rental renewal decisions in the API key tenant/project/environment using cursor pagination. The optional status filter narrows by durable billing status; this read remains available to exhausted production keys for account recovery."
+  },
+  {
+    "resource": "billing",
+    "operation": "retrieve_phone_renewal",
+    "method": "GET",
+    "path": "/v1/billing/phone-renewals/:cycle_id",
+    "scope": "billing:read",
+    "request_schema": null,
+    "query_schema": null,
+    "response_schema": "PhoneRenewalResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "none",
+    "notes": "Retrieves one prepaid phone-rental renewal decision in the API key tenant/project/environment. Missing and cross-scope cycle ids return phone_renewal_not_found without revealing whether the id exists."
+  },
+  {
+    "resource": "billing",
     "operation": "list_invoices",
     "method": "GET",
     "path": "/v1/invoices",
@@ -1446,6 +1524,30 @@
     "idempotency_key": "required",
     "trace_id_header": "supported",
     "notes": "Agent-facing failure reporting (ADR-025). Any valid live or sandbox key; no scope required; Idempotency-Key mandatory. Accepted even when production credit is exhausted. Submitter-asserted related_error and a flat string context are stored as untrusted data; tenant provenance is server-derived. Content is credential-redacted before storage. Returns a minimal receipt that never echoes the report."
+  },
+  {
+    "resource": "feedback",
+    "operation": "list",
+    "method": "GET",
+    "path": "/v1/feedback",
+    "scope": "none",
+    "request_schema": null,
+    "query_schema": "ListPublicFeedbackReportsQuery",
+    "response_schema": "ListPublicFeedbackReportsResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "none"
+  },
+  {
+    "resource": "feedback",
+    "operation": "get",
+    "method": "GET",
+    "path": "/v1/feedback/:id",
+    "scope": "none",
+    "request_schema": null,
+    "query_schema": null,
+    "response_schema": "PublicFeedbackReportResponse",
+    "idempotency_key": "none",
+    "trace_id_header": "none"
   },
   {
     "resource": "fiscal",
@@ -1666,7 +1768,7 @@
     "response_schema": "PhoneNumberResponse",
     "idempotency_key": "supported",
     "trace_id_header": "none",
-    "notes": "Production requests require a verified business identity (KYC, ADR-022) — verified instantly when the customer accepts the truthfulness declaration in dashboard Settings (self-declared, no banking data). Unverified organizations fail with 403 authorization_error and stable code kyc_required (no identity / rejected) or kyc_pending (submitted, not yet verified) before any row is written. Production requests then reserve the first phone.number.month BRL charge before Salvy is called; insufficient funds return 402 payment_required with stable code insufficient_balance. Sandbox provisioning is KYC-free and does not reserve or debit balance. All provision requests share a per-organization rate limit (burst 5, sustained 10/hour) returning 429 rate_limited with Retry-After; production requests additionally enforce a cap on concurrently held Salvy numbers per organization (deployment default 2) returning 409 conflict with stable code phone_number_limit_reached — release a number to free its slot."
+    "notes": "Production requests require a verified business identity (KYC) and a current verified owner/admin billing WhatsApp recipient with explicit transactional consent. The recipient is an operational contact, never the legal KYC phone. Missing identity fails with 403 authorization_error and stable code kyc_required (no identity / rejected) or kyc_pending (submitted, not yet verified); missing or stale recipient evidence fails with billing_whatsapp_required. Every gate runs before any row is written. Production requests then enforce two number limits in order — the subscription plan phone-number allowance, which counts numbers of both kinds (FREE 1 / STANDARD 3 / GROWTH no fixed limit), returning 402 payment_required with stable code plan_phone_limit_reached, and then a per-organization limit on concurrently held Tyxter-provisioned (Salvy) numbers (FREE 1 / STANDARD 3 / GROWTH 10 by default, raised per organization on request) returning 409 conflict with stable code phone_number_limit_reached — release a Tyxter-provisioned number to free its slot, or contact us to raise the limit. Only once both pass does the request reserve the first phone.number.month BRL charge before Salvy is called; insufficient funds return 402 payment_required with stable code insufficient_balance. Sandbox provisioning is KYC-free, capped by neither limit, and does not reserve or debit balance. All provision requests share a per-organization rate limit (burst 5, sustained 10/hour) returning 429 rate_limited with Retry-After."
   },
   {
     "resource": "phone_numbers",
