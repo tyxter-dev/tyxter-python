@@ -1,5 +1,6 @@
 {
   "CursorPaginationQuery": ["limit", "starting_after"],
+  "GroupEligibilityQuery": ["phone_number_id"],
   "ListAgenticAuthorizationsQuery": ["customer_tax_id", "limit", "starting_after", "status"],
   "ListAgenticBanksQuery": ["limit", "search"],
   "ListAgenticPaymentsQuery": ["customer_tax_id", "limit", "starting_after", "status"],
@@ -10,6 +11,7 @@
   "ListAutomationsQuery": ["limit", "starting_after", "status"],
   "ListBillingPackagesQuery": ["limit", "starting_after", "status"],
   "ListContactsQuery": ["limit", "search", "starting_after", "status", "tag_id"],
+  "ListGroupsQuery": ["limit", "phone_number_id", "starting_after", "status"],
   "ListenWebhookEventsQuery": [
     "cursor",
     "event_type",
@@ -28,6 +30,7 @@
   "ListMediaAssetsRequest": ["kind", "lifecycle", "limit", "source", "starting_after", "status"],
   "ListMessagesQuery": ["batch_id", "direction", "include", "limit", "starting_after", "status"],
   "ListPaymentsQuery": ["limit", "starting_after", "status"],
+  "ListPhoneManagementQuery": ["limit", "starting_after"],
   "ListProjectsQuery": ["limit", "starting_after"],
   "ListPhoneNumbersQuery": ["limit", "starting_after", "status"],
   "ListPhoneRenewalsQuery": ["limit", "starting_after", "status"],
